@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MSTest" Version="4.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\MoE.ModelManager\Models\ModelDefinition.cs" Link="Source\ModelDefinition.cs" />
+    <Compile Include="..\MoE.ModelManager\Models\RequestMetric.cs" Link="Source\RequestMetric.cs" />
+    <Compile Include="..\MoE.ModelManager\Services\IRequestTelemetryService.cs" Link="Source\IRequestTelemetryService.cs" />
+    <Compile Include="..\MoE.ModelManager\Services\LlamaArgumentsBuilder.cs" Link="Source\LlamaArgumentsBuilder.cs" />
+    <Compile Include="..\MoE.ModelManager\Services\RequestTelemetryService.cs" Link="Source\RequestTelemetryService.cs" />
+  </ItemGroup>
+
+</Project>

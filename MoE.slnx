@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MoE.ModelManager/MoE.ModelManager.csproj" />
+    <Project Path="src/MoE.ModelManager.Tests/MoE.ModelManager.Tests.csproj" />
+  </Folder>
+</Solution>

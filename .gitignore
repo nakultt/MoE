@@ -1,12 +1,26 @@
+# Visual Studio, .NET, and test output
+/.vs/
+**/bin/
+**/obj/
+**/AppPackages/
+**/TestResults/
+*.suo
+*.user
+
 # Local CUDA runtime is large and includes files above GitHub's size limit.
 /runtime/
 
-# Models remain outside this repository, but guard against accidental commits.
+# Models remain outside this repository; guard against accidental commits.
 *.gguf
 /models/
 
-# Generated benchmark and server output.
+# Generated benchmark, server, publish, and installer output.
 /logs/
 /benchmarks/results/
 /work/
+/artifacts/
 *.log
+
+# Never commit local signing keys or generated development certificates.
+*.pfx
+/devcert.cer

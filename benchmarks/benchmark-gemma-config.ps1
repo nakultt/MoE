@@ -16,7 +16,9 @@ param(
     [int]$GenerateTokens = 512,
 
     [ValidateRange(1024, 65535)]
-    [int]$Port = 8093
+    [int]$Port = 8093,
+
+    [switch]$UltimatePerformance
 )
 
 $ErrorActionPreference = 'Stop'
@@ -75,7 +77,18 @@ if ($Draft -ne 'none') {
 }
 
 $process = $null
+$originalPowerGuid = $null
 try {
+    if ($UltimatePerformance) {
+        $activeScheme = powercfg /getactivescheme
+        $guidMatch = [regex]::Match(($activeScheme -join ' '), '[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}')
+        if (-not $guidMatch.Success) {
+            throw 'Could not determine the active Windows power plan.'
+        }
+        $originalPowerGuid = $guidMatch.Value
+        powercfg /setactive '3a4bbc86-cef3-4dba-b43d-5f015ae0ebc0' | Out-Null
+    }
+
     $process = Start-Process -FilePath $server -ArgumentList $serverArgs -PassThru -WindowStyle Hidden -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog
 
     $ready = $false
@@ -130,5 +143,8 @@ try {
     if ($null -ne $process -and -not $process.HasExited) {
         Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
         $process.WaitForExit()
+    }
+    if ($null -ne $originalPowerGuid) {
+        powercfg /setactive $originalPowerGuid | Out-Null
     }
 }

@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "MoE.ModelManager (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "MoE.ModelManager (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

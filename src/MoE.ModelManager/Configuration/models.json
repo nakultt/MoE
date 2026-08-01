@@ -1,0 +1,24 @@
+[
+  {
+    "id": "qwen3.6-35b-a3b",
+    "displayName": "Qwen3.6 35B A3B",
+    "description": "Fast general-purpose MoE model; measured at 34.10 TPS.",
+    "modelPath": "C:\\Users\\nakul\\Documents\\Codex\\2026-08-01\\to-get-40-tokens-per-second\\work\\models\\Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf",
+    "contextSize": 16384,
+    "cpuMoeLayers": 30,
+    "draftModelPath": null,
+    "draftTokens": 0,
+    "measuredTokensPerSecond": 34.10
+  },
+  {
+    "id": "gemma-4-26b-a4b",
+    "displayName": "Gemma 4 26B A4B",
+    "description": "QAT target with Q8 MTP acceleration; measured at 50.65 TPS.",
+    "modelPath": "C:\\Users\\nakul\\Documents\\Codex\\2026-08-01\\to-get-40-tokens-per-second\\work\\models\\gemma4\\gemma-4-26B-A4B-it-qat-UD-Q4_K_XL.gguf",
+    "contextSize": 8192,
+    "cpuMoeLayers": 20,
+    "draftModelPath": "C:\\Users\\nakul\\Documents\\Codex\\2026-08-01\\to-get-40-tokens-per-second\\work\\models\\gemma4\\MTP\\mtp-gemma-4-26B-A4B-it-Q8_0.gguf",
+    "draftTokens": 2,
+    "measuredTokensPerSecond": 50.65
+  }
+]
