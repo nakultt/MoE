@@ -1,0 +1,12 @@
+# Local CUDA runtime is large and includes files above GitHub's size limit.
+/runtime/
+
+# Models remain outside this repository, but guard against accidental commits.
+*.gguf
+/models/
+
+# Generated benchmark and server output.
+/logs/
+/benchmarks/results/
+/work/
+*.log
