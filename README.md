@@ -114,7 +114,13 @@ Output:
 - `artifacts\MoE.ModelManager_1.0.0.0_x64.msix`
 - `artifacts\MoE.ModelManager-devcert.cer`
 
-This is a locally signed development installer. Trust the included public `.cer` in the Windows **Trusted People** certificate store, then open the `.msix`. The private `.pfx`, generated output, runtime binaries, and model files are gitignored.
+This is a locally signed development installer. Install it with:
+
+```powershell
+.\scripts\install-app.ps1
+```
+
+Approve the Windows administrator prompt, then select **Install** in App Installer. The helper verifies that the certificate matches the MSIX signer and imports it into **Local Computer → Trusted People**, which is the machine store App Installer checks. Do not choose the Current User certificate store. The private `.pfx`, generated output, runtime binaries, and model files are gitignored.
 
 ## Verification
 

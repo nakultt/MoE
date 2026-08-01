@@ -55,3 +55,4 @@ Copy-Item -LiteralPath $publicCertificatePath -Destination (Join-Path $artifactD
 $hash = Get-FileHash -LiteralPath $packagePath -Algorithm SHA256
 Write-Host "Installer: $packagePath"
 Write-Host "SHA256: $($hash.Hash)"
+Write-Host 'Install with: .\scripts\install-app.ps1'
