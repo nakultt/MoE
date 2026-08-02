@@ -5,6 +5,8 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
 using MoE.ModelManager.Models;
 using MoE.ModelManager.ViewModels;
+using Windows.Media.Core;
+using Windows.Storage.Pickers;
 using Windows.Storage.Streams;
 
 namespace MoE.ModelManager;
@@ -22,6 +24,8 @@ public sealed partial class MainPage : Page
         Unloaded += OnUnloaded;
         ViewModel.Messages.CollectionChanged += OnMessagesChanged;
         ViewModel.ImageGenerated += OnImageGenerated;
+        ViewModel.SpeechGenerated += OnSpeechGenerated;
+        ViewModel.VideoGenerated += OnVideoGenerated;
     }
 
     public MainViewModel ViewModel { get; }
@@ -42,6 +46,8 @@ public sealed partial class MainPage : Page
     {
         ViewModel.Messages.CollectionChanged -= OnMessagesChanged;
         ViewModel.ImageGenerated -= OnImageGenerated;
+        ViewModel.SpeechGenerated -= OnSpeechGenerated;
+        ViewModel.VideoGenerated -= OnVideoGenerated;
         ViewModel.Dispose();
     }
 
@@ -64,5 +70,37 @@ public sealed partial class MainPage : Page
         bitmap.SetSource(stream);
         GeneratedImage.Source = bitmap;
         ImagePlaceholder.Visibility = Visibility.Collapsed;
+    }
+
+    private void OnVideoGenerated(GeneratedVideoResult result)
+    {
+        GeneratedVideo.Source = MediaSource.CreateFromUri(new Uri(result.OutputPath));
+        GeneratedVideo.Visibility = Visibility.Visible;
+        VideoPlaceholder.Visibility = Visibility.Collapsed;
+    }
+
+    private async void OnSelectAudioFileClicked(object sender, RoutedEventArgs e)
+    {
+        FileOpenPicker picker = new();
+        picker.FileTypeFilter.Add(".wav");
+        Window? window = ((App)Application.Current).MainWindow;
+        if (window is null)
+        {
+            return;
+        }
+
+        nint windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(window);
+        WinRT.Interop.InitializeWithWindow.Initialize(picker, windowHandle);
+        Windows.Storage.StorageFile? file = await picker.PickSingleFileAsync();
+        if (file is not null)
+        {
+            ViewModel.SelectedAudioFilePath = file.Path;
+        }
+    }
+
+    private void OnSpeechGenerated(GeneratedSpeechResult result)
+    {
+        GeneratedSpeech.Source = MediaSource.CreateFromUri(new Uri(result.OutputPath));
+        GeneratedSpeech.Visibility = Visibility.Visible;
     }
 }

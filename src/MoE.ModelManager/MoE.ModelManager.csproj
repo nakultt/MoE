@@ -33,6 +33,12 @@
     <Content Include="Assets\Wide310x150Logo.scale-200.png" />
     <Content Include="Configuration\models.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Configuration\image-model.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Configuration\audio-model.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Configuration\video-model.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\scripts\video-runtime.sh">
+      <Link>VideoRuntime\video-runtime.sh</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="..\..\runtime\llama.cpp-b10218-cuda13\**\*">
       <Link>Runtime\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -76,6 +82,7 @@
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2526" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.3.1" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools.WinApp" Version="0.5.0" />
+    <PackageReference Include="org.k2fsa.sherpa.onnx" Version="1.13.4" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.556">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>

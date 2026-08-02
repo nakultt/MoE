@@ -6,7 +6,7 @@
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <data name="WindowTitle.Title" xml:space="preserve"><value>MoE Model Manager</value></data>
   <data name="AppHeading.Text" xml:space="preserve"><value>Local AI control center</value></data>
-  <data name="AppSubheading.Text" xml:space="preserve"><value>Run optimized text and image models locally through one OpenAI-compatible API.</value></data>
+  <data name="AppSubheading.Text" xml:space="preserve"><value>Run optimized text, image, video, and speech models locally through one OpenAI-compatible API.</value></data>
   <data name="ModelsHeading.Text" xml:space="preserve"><value>Models</value></data>
   <data name="ModelPicker.Header" xml:space="preserve"><value>Select model</value></data>
   <data name="ModelPicker.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Model selector</value></data>
@@ -17,7 +17,7 @@
   <data name="RuntimeStatusLabel.Text" xml:space="preserve"><value>Runtime status</value></data>
   <data name="ModelPathLabel.Text" xml:space="preserve"><value>Model file</value></data>
   <data name="ApiHeading.Text" xml:space="preserve"><value>OpenAI-compatible API</value></data>
-  <data name="ApiHint.Text" xml:space="preserve"><value>Use this base URL for chat completions and image generations from any local project.</value></data>
+  <data name="ApiHint.Text" xml:space="preserve"><value>Use this base URL for chat, image, video, speech, and transcription requests from any local project.</value></data>
   <data name="ImageModelHeading.Text" xml:space="preserve"><value>Image model</value></data>
   <data name="LoadImageModelButton.Content" xml:space="preserve"><value>Load image model</value></data>
   <data name="LoadImageModelButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Load FLUX image model</value></data>
@@ -25,11 +25,43 @@
   <data name="EjectImageModelButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Eject image model</value></data>
   <data name="ImageRuntimeStatusLabel.Text" xml:space="preserve"><value>Image runtime status</value></data>
   <data name="ImageModelPathLabel.Text" xml:space="preserve"><value>Image model file</value></data>
+  <data name="VideoModelHeading.Text" xml:space="preserve"><value>Video model</value></data>
+  <data name="LoadVideoModelButton.Content" xml:space="preserve"><value>Load video model</value></data>
+  <data name="LoadVideoModelButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Load FastWan video model</value></data>
+  <data name="EjectVideoModelButton.Content" xml:space="preserve"><value>Eject</value></data>
+  <data name="EjectVideoModelButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Eject video model</value></data>
+  <data name="VideoRuntimeStatusLabel.Text" xml:space="preserve"><value>Video runtime status</value></data>
+  <data name="VideoModelPathLabel.Text" xml:space="preserve"><value>Video model directory</value></data>
+  <data name="AudioModelHeading.Text" xml:space="preserve"><value>Speech models</value></data>
+  <data name="LoadAudioModelButton.Content" xml:space="preserve"><value>Load speech models</value></data>
+  <data name="LoadAudioModelButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Load Parakeet and Kokoro models</value></data>
+  <data name="EjectAudioModelButton.Content" xml:space="preserve"><value>Eject</value></data>
+  <data name="EjectAudioModelButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Eject speech models</value></data>
+  <data name="AudioRuntimeStatusLabel.Text" xml:space="preserve"><value>Speech runtime status</value></data>
+  <data name="AudioModelPathLabel.Text" xml:space="preserve"><value>Speech model directories</value></data>
   <data name="ChatHeading.Text" xml:space="preserve"><value>Chat</value></data>
   <data name="ChatTab.Header" xml:space="preserve"><value>Chat</value></data>
   <data name="ChatTab.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Chat tab</value></data>
   <data name="ImagesTab.Header" xml:space="preserve"><value>Images</value></data>
   <data name="ImagesTab.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Image generation tab</value></data>
+  <data name="VideosTab.Header" xml:space="preserve"><value>Videos</value></data>
+  <data name="VideosTab.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Video generation tab</value></data>
+  <data name="AudioTab.Header" xml:space="preserve"><value>Audio</value></data>
+  <data name="AudioTab.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Speech transcription and generation tab</value></data>
+  <data name="TranscriptionHeading.Text" xml:space="preserve"><value>Speech to text</value></data>
+  <data name="TranscriptionHint.Text" xml:space="preserve"><value>Transcribe a PCM WAV file locally with NVIDIA Parakeet TDT 0.6B v3.</value></data>
+  <data name="SelectAudioFileButton.Content" xml:space="preserve"><value>Choose WAV file</value></data>
+  <data name="SelectAudioFileButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Choose audio file to transcribe</value></data>
+  <data name="TranscribeButton.Content" xml:space="preserve"><value>Transcribe</value></data>
+  <data name="CancelTranscriptionButton.Content" xml:space="preserve"><value>Stop</value></data>
+  <data name="TranscriptionOutput.Header" xml:space="preserve"><value>Editable transcription</value></data>
+  <data name="SpeechHeading.Text" xml:space="preserve"><value>Text to speech</value></data>
+  <data name="SpeechHint.Text" xml:space="preserve"><value>Generate natural speech locally with Kokoro 82M and play or save the WAV output.</value></data>
+  <data name="SpeechTextBox.Header" xml:space="preserve"><value>Text to speak</value></data>
+  <data name="SpeechTextBox.PlaceholderText" xml:space="preserve"><value>Enter the words you want Kokoro to speak…</value></data>
+  <data name="VoicePicker.Header" xml:space="preserve"><value>Voice</value></data>
+  <data name="GenerateSpeechButton.Content" xml:space="preserve"><value>Generate speech</value></data>
+  <data name="CancelSpeechButton.Content" xml:space="preserve"><value>Stop</value></data>
   <data name="ImageGenerationHeading.Text" xml:space="preserve"><value>Create an image</value></data>
   <data name="ImagePlaceholder.Text" xml:space="preserve"><value>Your generated image will appear here.</value></data>
   <data name="GeneratedImage.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Generated image preview</value></data>
@@ -42,6 +74,18 @@
   <data name="GenerateImageButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Generate image</value></data>
   <data name="CancelImageButton.Content" xml:space="preserve"><value>Stop</value></data>
   <data name="CancelImageButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Stop image generation</value></data>
+  <data name="VideoGenerationHeading.Text" xml:space="preserve"><value>Create a video</value></data>
+  <data name="VideoPlaceholder.Text" xml:space="preserve"><value>Your generated video will appear here.</value></data>
+  <data name="GeneratedVideo.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Generated video player</value></data>
+  <data name="VideoPromptBox.Header" xml:space="preserve"><value>Video prompt</value></data>
+  <data name="VideoPromptBox.PlaceholderText" xml:space="preserve"><value>Describe the motion, scene, lighting, and camera movement…</value></data>
+  <data name="VideoPromptBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Video generation prompt</value></data>
+  <data name="VideoPresetPicker.Header" xml:space="preserve"><value>Speed and quality</value></data>
+  <data name="VideoPresetPicker.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Video generation preset</value></data>
+  <data name="GenerateVideoButton.Content" xml:space="preserve"><value>Generate</value></data>
+  <data name="GenerateVideoButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Generate video</value></data>
+  <data name="CancelVideoButton.Content" xml:space="preserve"><value>Stop</value></data>
+  <data name="CancelVideoButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Stop video generation and eject runtime</value></data>
   <data name="ChatList.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Chat conversation</value></data>
   <data name="PromptBox.Header" xml:space="preserve"><value>Message</value></data>
   <data name="PromptBox.PlaceholderText" xml:space="preserve"><value>Ask the loaded model anything…</value></data>
@@ -66,6 +110,8 @@
   <data name="ErrorApiFailed" xml:space="preserve"><value>The local API could not start.</value></data>
   <data name="ApiNoModel" xml:space="preserve"><value>No model is loaded.</value></data>
   <data name="ApiNoImageModel" xml:space="preserve"><value>No image model is loaded.</value></data>
+  <data name="ApiNoVideoModel" xml:space="preserve"><value>No video model is loaded.</value></data>
+  <data name="ApiNoAudioModel" xml:space="preserve"><value>The speech models are not loaded.</value></data>
   <data name="ApiInvalidRequest" xml:space="preserve"><value>The request body is invalid.</value></data>
   <data name="SourceDesktop" xml:space="preserve"><value>Desktop</value></data>
   <data name="SourceExternal" xml:space="preserve"><value>External</value></data>
@@ -80,11 +126,31 @@
   <data name="TokenPerformanceSummaryFormat" xml:space="preserve"><value>{0:N2} TPS · {1:N2} seconds</value></data>
   <data name="ImageMetricSummaryFormat" xml:space="preserve"><value>{0} image generated</value></data>
   <data name="ImagePerformanceSummaryFormat" xml:space="preserve"><value>{0:N2} seconds · {1:N2} images/minute</value></data>
+  <data name="VideoQueuedMetricSummary" xml:space="preserve"><value>Video job queued</value></data>
+  <data name="VideoJobStatusFormat" xml:space="preserve"><value>Video job {0}</value></data>
+  <data name="VideoQueuedPerformanceSummary" xml:space="preserve"><value>Generation running in the background</value></data>
+  <data name="VideoMetricSummaryFormat" xml:space="preserve"><value>1 video · {0} · {1} seconds</value></data>
+  <data name="VideoPerformanceSummaryFormat" xml:space="preserve"><value>{0:N2} seconds generation</value></data>
+  <data name="AudioMetricSummaryFormat" xml:space="preserve"><value>{0:N2} seconds {1}</value></data>
+  <data name="AudioPerformanceSummaryFormat" xml:space="preserve"><value>{0:N2} seconds · {1:N1}× realtime</value></data>
   <data name="ErrorImageLoadFailed" xml:space="preserve"><value>Could not load the image model.</value></data>
   <data name="ErrorImageGenerationFailed" xml:space="preserve"><value>Image generation failed.</value></data>
   <data name="ImageGenerating" xml:space="preserve"><value>Generating image…</value></data>
   <data name="ImageGenerationCanceled" xml:space="preserve"><value>Image generation stopped.</value></data>
   <data name="ImageResultFormat" xml:space="preserve"><value>Generated in {0:N2} seconds. Saved locally.</value></data>
+  <data name="ErrorVideoLoadFailed" xml:space="preserve"><value>Could not load the video model.</value></data>
+  <data name="ErrorVideoGenerationFailed" xml:space="preserve"><value>Video generation failed.</value></data>
+  <data name="VideoGenerating" xml:space="preserve"><value>Generating video… This can take several minutes.</value></data>
+  <data name="VideoGenerationCanceled" xml:space="preserve"><value>Video generation stopped and the runtime was ejected.</value></data>
+  <data name="VideoResultFormat" xml:space="preserve"><value>Generated in {0:N2} seconds. Saved locally.</value></data>
+  <data name="ErrorAudioLoadFailed" xml:space="preserve"><value>Could not load the speech models.</value></data>
+  <data name="ErrorTranscriptionFailed" xml:space="preserve"><value>Transcription failed.</value></data>
+  <data name="ErrorSpeechGenerationFailed" xml:space="preserve"><value>Speech generation failed.</value></data>
+  <data name="AudioTranscribing" xml:space="preserve"><value>Transcribing audio…</value></data>
+  <data name="SpeechGenerating" xml:space="preserve"><value>Generating speech…</value></data>
+  <data name="AudioOperationCanceled" xml:space="preserve"><value>Speech operation stopped.</value></data>
+  <data name="TranscriptionResultFormat" xml:space="preserve"><value>Transcribed in {0:N2} seconds · {1:N1}× realtime.</value></data>
+  <data name="SpeechResultFormat" xml:space="preserve"><value>Generated in {0:N2} seconds · {1:N1}× realtime. Saved locally.</value></data>
   <data name="ApiReady" xml:space="preserve"><value>API listening</value></data>
   <data name="ApiStopped" xml:space="preserve"><value>API stopped</value></data>
 </root>

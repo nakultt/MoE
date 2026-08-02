@@ -1,19 +1,42 @@
 # MoE Model Manager
 
-Native WinUI 3 desktop control center for local Qwen3.6, Gemma 4, and FLUX.2 Klein models. It loads one GPU model at a time, provides Markdown chat and image generation, and exposes the active model through an OpenAI-compatible loopback API.
+Native WinUI 3 desktop control center for local Qwen3.6, Gemma 4, FLUX.2 Klein, FastWan2.2, NVIDIA Parakeet, and Kokoro models. It provides Markdown chat, image/video generation, speech transcription, text-to-speech playback, and an OpenAI-compatible loopback API.
 
 ## What is included
 
 - Model selection, load, eject, and live runtime status.
 - Streaming local chat with native Markdown rendering for headings, lists, emphasis, links, quotes, and code.
 - FLUX.2 Klein image generation with size selection, in-app preview, automatic local saving, and cancel support.
-- OpenAI-compatible `GET`/`POST` proxy at `http://127.0.0.1:8081/v1`.
-- Request activity showing chat TPS or image generation duration for desktop and external API calls.
+- FastWan2.2 three-step video generation with Turbo, Balanced, and Quality presets, in-app MP4 playback, local saving, and stop/eject support.
+- Native C# speech-to-text with Parakeet TDT 0.6B v3 INT8 and text-to-speech with Kokoro 82M, including editable transcription, voice/speed selection, WAV playback, and local saving.
+- OpenAI-compatible `GET`/`POST`/`DELETE` proxy at `http://127.0.0.1:8081/v1`.
+- Request activity showing chat TPS, image duration, or completed video generation duration for desktop and external API calls.
 - Pinned CUDA 13.3 llama.cpp runtime installer (`b10218`).
 - Pinned CUDA 12 stable-diffusion.cpp image runtime (`e31a86c`).
+- Pinned FastVideo WSL runtime (`1b2b2a0`) with FP8 transformer quantization and layerwise offload.
+- In-process sherpa-onnx audio runtime; Python and a separate audio server are not required.
 - Reproducible x64 MSIX packaging script.
 
 The GGUF and safetensors files are intentionally not stored in this repository. The app and runtimes live on `E:`, while the large model files stay on `C:`.
+
+### Local speech configuration
+
+The Audio tab loads both CPU models together. Parakeet handles multilingual transcription and token timestamps; Kokoro provides the configured American and British English voices. Because both run through native ONNX in the WinUI process, they use no meaningful GPU memory and can remain loaded while a text, image, or video model uses the RTX 4060.
+
+The verified smoke test generated 3.59 second
+s of Kokoro speech and Parakeet transcribed the result exactly in 0.29 seconds. Run `scripts\setup-audio-models.ps1` once to download the approximately 800 MB compressed model archives; extracted models remain outside the repository.
+
+### FastWan2.2 video configuration
+
+The video model is `FastVideo/FastWan2.2-TI2V-5B-FullAttn-Diffusers`. The 24.2 GB repository remains on disk and is not copied into the MSIX. FastVideo runs inside Ubuntu WSL and uses FP8 transformer quantization plus layerwise CPU-to-GPU offload so the active layer and working tensors fit the 8 GB RTX 4060. Text encoder and VAE components are offloaded between stages.
+
+The app provides three initial presets. Their real elapsed times will be recorded after the complete model is downloaded and benchmarked on this machine.
+
+| Preset | Native output | Denoising steps |
+| --- | --- | ---: |
+| Turbo | 384×384, 25 frames at 12 FPS | 3 |
+| **Balanced (default)** | **448×448, 49 frames at 16 FPS** | **3** |
+| Quality | 512×512, 81 frames at 16 FPS | 3 |
 
 ## Measured configurations on this machine
 
@@ -84,6 +107,7 @@ Requirements:
 - Windows 11 x64
 - NVIDIA RTX GPU with a current driver
 - .NET 10 SDK and the Windows application development workload
+- WSL 2 with Ubuntu and at least 24 GB assigned memory for video generation
 
 Install or verify the pinned local runtime:
 
@@ -91,6 +115,8 @@ Install or verify the pinned local runtime:
 Set-Location E:\Github\MoE
 .\scripts\install-runtime.ps1
 .\scripts\install-image-model.ps1
+.\scripts\setup-video-runtime.ps1
+.\scripts\setup-audio-models.ps1
 ```
 
 Build and launch:
@@ -100,7 +126,7 @@ dotnet build .\src\MoE.ModelManager\MoE.ModelManager.csproj -c Debug -p:Platform
 dotnet run --project .\src\MoE.ModelManager\MoE.ModelManager.csproj -c Debug -p:Platform=x64
 ```
 
-If an LLM GGUF moves, edit its absolute path in [models.json](src/MoE.ModelManager/Configuration/models.json). FLUX paths and its four-step configuration live in [image-model.json](src/MoE.ModelManager/Configuration/image-model.json).
+If an LLM GGUF moves, edit its absolute path in [models.json](src/MoE.ModelManager/Configuration/models.json). FLUX paths live in [image-model.json](src/MoE.ModelManager/Configuration/image-model.json), FastWan settings live in [video-model.json](src/MoE.ModelManager/Configuration/video-model.json), and Parakeet/Kokoro paths and voices live in [audio-model.json](src/MoE.ModelManager/Configuration/audio-model.json).
 
 ## Fallback llama.cpp Web UI launchers
 
@@ -154,7 +180,32 @@ Invoke-RestMethod `
     -Body $body
 ```
 
-Text model IDs are `qwen3.6-35b-a3b` and `gemma-4-26b-a4b`; the image model ID is `flux.2-klein-4b`. Requests from built-in chat/image generation are labeled **Desktop**; requests from other processes are labeled **External**.
+Text model IDs are `qwen3.6-35b-a3b` and `gemma-4-26b-a4b`; the image model ID is `flux.2-klein-4b`; the video model ID is `fastwan2.2-ti2v-5b`. Audio endpoints accept `kokoro-82m` and `parakeet-tdt-0.6b-v3`. Requests from the built-in UI are labeled **Desktop**; requests from other processes are labeled **External**.
+
+Load the speech models in the app, then use the OpenAI-compatible speech endpoints. The first version intentionally uses WAV for both input and output:
+
+```powershell
+$speech = @{
+    model = 'kokoro-82m'
+    input = 'This speech was generated completely locally.'
+    voice = 'af_heart'
+    response_format = 'wav'
+    speed = 1.0
+} | ConvertTo-Json
+
+Invoke-WebRequest `
+    -Uri 'http://127.0.0.1:8081/v1/audio/speech' `
+    -Method Post `
+    -ContentType 'application/json' `
+    -Body $speech `
+    -OutFile '.\speech.wav'
+
+curl.exe http://127.0.0.1:8081/v1/audio/transcriptions `
+    -F file=@speech.wav `
+    -F model=parakeet-tdt-0.6b-v3
+```
+
+`POST /v1/audio/transcriptions` returns text, duration, tokens, and timestamps. Set `response_format=text` for a plain-text response. Both endpoint timings appear in Request activity with their realtime factor.
 
 Load FLUX in the app, then generate an image through the same API:
 
@@ -175,6 +226,36 @@ with open("flux.png", "wb") as output:
 
 The image endpoint is `POST /v1/images/generations`. Responses contain standard `data[].b64_json` image data and appear in the app's Request activity panel.
 
+Load FastWan in the app, then create and download a video job through the same API:
+
+```powershell
+$body = @{
+    model = 'fastwan2.2-ti2v-5b'
+    prompt = 'A cinematic macro shot of raindrops rolling across a red maple leaf'
+    size = '448x448'
+    fps = 16
+    num_frames = 49
+    num_inference_steps = 3
+} | ConvertTo-Json
+
+$job = Invoke-RestMethod `
+    -Uri 'http://127.0.0.1:8081/v1/videos' `
+    -Method Post `
+    -ContentType 'application/json' `
+    -Body $body
+
+do {
+    Start-Sleep -Seconds 2
+    $job = Invoke-RestMethod -Uri "http://127.0.0.1:8081/v1/videos/$($job.id)"
+} while ($job.status -eq 'queued')
+
+Invoke-WebRequest `
+    -Uri "http://127.0.0.1:8081/v1/videos/$($job.id)/content" `
+    -OutFile '.\fastwan.mp4'
+```
+
+The API supports `POST /v1/videos`, `GET /v1/videos/{id}`, `GET /v1/videos/{id}/content`, and `DELETE /v1/videos/{id}`. `POST /v1/videos/generations` is also accepted as a convenience alias.
+
 ## Build the installer
 
 ```powershell
@@ -184,7 +265,7 @@ Set-Location E:\Github\MoE
 
 Output:
 
-- `artifacts\MoE.ModelManager_1.1.0.1_x64.msix`
+- `artifacts\MoE.ModelManager_1.3.0.0_x64.msix`
 - `artifacts\MoE.ModelManager-devcert.cer`
 
 This is a locally signed development installer. Install it with:
@@ -199,7 +280,7 @@ Approve the Windows administrator prompt, then select **Install** in App Install
 
 ```powershell
 dotnet build .\src\MoE.ModelManager\MoE.ModelManager.csproj -c Release -p:Platform=x64
-dotnet test .\src\MoE.ModelManager.Tests\MoE.ModelManager.Tests.csproj -c Debug
+dotnet test .\src\MoE.ModelManager.Tests\MoE.ModelManager.Tests.csproj -c Debug -p:Platform=x64
 ```
 
-The Release build and focused tests cover text/image model configuration, llama.cpp and stable-diffusion.cpp arguments, invalid ports, and bounded request telemetry.
+The Release build and focused tests cover text/image/video model configuration, llama.cpp and stable-diffusion.cpp arguments, WSL path mapping, WAV decoding, invalid ports, and bounded request telemetry.

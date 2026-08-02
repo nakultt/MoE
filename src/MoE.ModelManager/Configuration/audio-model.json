@@ -1,0 +1,21 @@
+{
+  "id": "parakeet-v3-kokoro-82m",
+  "displayName": "Parakeet TDT 0.6B v3 + Kokoro 82M",
+  "description": "Fast native speech-to-text and text-to-speech. Runs on CPU so GPU memory stays available for other local models.",
+  "parakeetModelPath": "C:\\Users\\nakul\\Documents\\Codex\\2026-08-01\\to-get-40-tokens-per-second\\work\\models\\sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8",
+  "kokoroModelPath": "C:\\Users\\nakul\\Documents\\Codex\\2026-08-01\\to-get-40-tokens-per-second\\work\\models\\kokoro-multi-lang-v1_0",
+  "numThreads": 8,
+  "voices": [
+    { "id": "af_heart", "displayName": "Heart · American female", "speakerId": 3 },
+    { "id": "af_bella", "displayName": "Bella · American female", "speakerId": 2 },
+    { "id": "af_nova", "displayName": "Nova · American female", "speakerId": 7 },
+    { "id": "af_sarah", "displayName": "Sarah · American female", "speakerId": 9 },
+    { "id": "af_sky", "displayName": "Sky · American female", "speakerId": 10 },
+    { "id": "am_adam", "displayName": "Adam · American male", "speakerId": 11 },
+    { "id": "am_eric", "displayName": "Eric · American male", "speakerId": 13 },
+    { "id": "am_liam", "displayName": "Liam · American male", "speakerId": 15 },
+    { "id": "am_michael", "displayName": "Michael · American male", "speakerId": 16 },
+    { "id": "bf_emma", "displayName": "Emma · British female", "speakerId": 28 },
+    { "id": "bm_george", "displayName": "George · British male", "speakerId": 31 }
+  ]
+}

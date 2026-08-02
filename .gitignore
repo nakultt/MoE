@@ -6,6 +6,8 @@
 **/TestResults/
 *.suo
 *.user
+**/__pycache__/
+*.pyc
 
 # Local CUDA runtime is large and includes files above GitHub's size limit.
 /runtime/
