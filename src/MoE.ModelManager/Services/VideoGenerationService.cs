@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -8,16 +9,25 @@ namespace MoE.ModelManager.Services;
 
 internal sealed class VideoGenerationService : IVideoGenerationService
 {
-    private readonly IApiProxyService _apiProxyService;
-    private readonly IHttpClientFactory _httpClientFactory;
+    private static readonly Uri BackendBaseUri = new($"http://127.0.0.1:{VideoRuntimeService.BackendPort}/v1/");
 
-    public VideoGenerationService(IApiProxyService apiProxyService, IHttpClientFactory httpClientFactory)
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IRequestTelemetryService _telemetryService;
+    private readonly IAppResources _resources;
+    private readonly object _generationSync = new();
+    private Task<GeneratedVideoResult>? _activeGeneration;
+
+    public VideoGenerationService(
+        IHttpClientFactory httpClientFactory,
+        IRequestTelemetryService telemetryService,
+        IAppResources resources)
     {
-        _apiProxyService = apiProxyService;
         _httpClientFactory = httpClientFactory;
+        _telemetryService = telemetryService;
+        _resources = resources;
     }
 
-    public async Task<GeneratedVideoResult> GenerateAsync(
+    public Task<GeneratedVideoResult> GenerateAsync(
         string modelId,
         string prompt,
         VideoGenerationPreset preset,
@@ -27,6 +37,37 @@ internal sealed class VideoGenerationService : IVideoGenerationService
         ArgumentException.ThrowIfNullOrWhiteSpace(prompt);
         ArgumentNullException.ThrowIfNull(preset);
 
+        lock (_generationSync)
+        {
+            // WinUI can dispatch the same command again while the first async
+            // invocation is crossing the loopback HTTP boundary. Reuse the
+            // active operation so one click can never create two FastVideo jobs.
+            if (_activeGeneration is { IsCompleted: false })
+            {
+                return _activeGeneration;
+            }
+
+            Task<GeneratedVideoResult> generation = GenerateCoreAsync(
+                modelId,
+                prompt,
+                preset,
+                cancellationToken);
+            _activeGeneration = generation;
+            _ = generation.ContinueWith(
+                completed => ClearActiveGeneration(completed),
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+            return generation;
+        }
+    }
+
+    private async Task<GeneratedVideoResult> GenerateCoreAsync(
+        string modelId,
+        string prompt,
+        VideoGenerationPreset preset,
+        CancellationToken cancellationToken)
+    {
         object payload = new
         {
             model = modelId,
@@ -38,21 +79,25 @@ internal sealed class VideoGenerationService : IVideoGenerationService
             guidance_scale = 1.0,
             seed = Random.Shared.Next(1, int.MaxValue),
         };
-        using HttpRequestMessage request = new(HttpMethod.Post, $"{_apiProxyService.BaseUrl}/videos")
+        using HttpRequestMessage request = new(HttpMethod.Post, new Uri(BackendBaseUri, "videos"))
         {
             Content = JsonContent.Create(payload),
         };
         request.Headers.Add("X-MoE-Client", "desktop");
+        request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString("N"));
 
         Stopwatch stopwatch = Stopwatch.StartNew();
-        HttpClient client = _httpClientFactory.CreateClient("LocalApi");
-        using HttpResponseMessage response = await client.SendAsync(request, cancellationToken);
+        HttpClient client = _httpClientFactory.CreateClient("VideoBackend");
+        using HttpResponseMessage response = await client.SendAsync(
+            request,
+            HttpCompletionOption.ResponseContentRead,
+            cancellationToken);
         response.EnsureSuccessStatusCode();
         using JsonDocument queued = JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync(cancellationToken));
         string jobId = queued.RootElement.GetProperty("id").GetString()
             ?? throw new InvalidDataException("The video runtime returned an empty job identifier.");
 
-        await WaitForCompletionAsync(client, jobId, cancellationToken);
+        double inferenceSeconds = await WaitForCompletionAsync(client, jobId, cancellationToken);
         string outputDirectory = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "MoEModelManager",
@@ -61,16 +106,27 @@ internal sealed class VideoGenerationService : IVideoGenerationService
         string outputPath = Path.Combine(outputDirectory, $"{jobId}.mp4");
         if (!File.Exists(outputPath))
         {
-            string contentUrl = $"{_apiProxyService.BaseUrl}/videos/{Uri.EscapeDataString(jobId)}/content";
+            Uri contentUrl = new(BackendBaseUri, $"videos/{Uri.EscapeDataString(jobId)}/content");
             using HttpRequestMessage contentRequest = new(HttpMethod.Get, contentUrl);
             contentRequest.Headers.Add("X-MoE-Client", "desktop");
-            using HttpResponseMessage contentResponse = await client.SendAsync(contentRequest, cancellationToken);
+            using HttpResponseMessage contentResponse = await client.SendAsync(
+                contentRequest,
+                HttpCompletionOption.ResponseHeadersRead,
+                cancellationToken);
             contentResponse.EnsureSuccessStatusCode();
-            byte[] videoData = await contentResponse.Content.ReadAsByteArrayAsync(cancellationToken);
-            await File.WriteAllBytesAsync(outputPath, videoData, cancellationToken);
+            await using Stream source = await contentResponse.Content.ReadAsStreamAsync(cancellationToken);
+            await using FileStream destination = new(
+                outputPath,
+                FileMode.Create,
+                FileAccess.Write,
+                FileShare.None,
+                1024 * 1024,
+                useAsync: true);
+            await source.CopyToAsync(destination, cancellationToken);
         }
 
         stopwatch.Stop();
+        AddCompletedMetric(modelId, preset, stopwatch.Elapsed.TotalMilliseconds, inferenceSeconds);
         return new GeneratedVideoResult
         {
             JobId = jobId,
@@ -79,12 +135,16 @@ internal sealed class VideoGenerationService : IVideoGenerationService
         };
     }
 
-    private async Task WaitForCompletionAsync(
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Performance",
+        "CA1822:Mark members as static",
+        Justification = "This polling operation is part of the stateful video generation workflow.")]
+    private async Task<double> WaitForCompletionAsync(
         HttpClient client,
         string jobId,
         CancellationToken cancellationToken)
     {
-        string statusUrl = $"{_apiProxyService.BaseUrl}/videos/{Uri.EscapeDataString(jobId)}";
+        Uri statusUrl = new(BackendBaseUri, $"videos/{Uri.EscapeDataString(jobId)}");
         while (true)
         {
             await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
@@ -102,7 +162,10 @@ internal sealed class VideoGenerationService : IVideoGenerationService
             string status = document.RootElement.GetProperty("status").GetString() ?? string.Empty;
             if (status.Equals("completed", StringComparison.OrdinalIgnoreCase))
             {
-                return;
+                return document.RootElement.TryGetProperty("inference_time_s", out JsonElement inferenceElement)
+                    && inferenceElement.TryGetDouble(out double inferenceSeconds)
+                        ? inferenceSeconds
+                        : 0;
             }
 
             if (status.Equals("failed", StringComparison.OrdinalIgnoreCase))
@@ -113,5 +176,48 @@ internal sealed class VideoGenerationService : IVideoGenerationService
                 throw new InvalidDataException($"Video generation failed: {error}");
             }
         }
+    }
+
+    private void ClearActiveGeneration(Task<GeneratedVideoResult> completed)
+    {
+        lock (_generationSync)
+        {
+            if (ReferenceEquals(_activeGeneration, completed))
+            {
+                _activeGeneration = null;
+            }
+        }
+    }
+
+    private void AddCompletedMetric(
+        string modelId,
+        VideoGenerationPreset preset,
+        double durationMilliseconds,
+        double inferenceSeconds)
+    {
+        double videoSeconds = preset.FramesPerSecond > 0
+            ? (double)preset.Frames / preset.FramesPerSecond
+            : 0;
+        double generationSeconds = inferenceSeconds > 0
+            ? inferenceSeconds
+            : durationMilliseconds / 1000d;
+        _telemetryService.Add(new RequestMetric
+        {
+            Timestamp = DateTimeOffset.Now,
+            Source = _resources.GetString("SourceDesktop"),
+            Endpoint = "/v1/videos",
+            Model = modelId,
+            StatusCode = (int)HttpStatusCode.OK,
+            DurationMilliseconds = durationMilliseconds,
+            QuantitySummary = string.Format(
+                CultureInfo.CurrentCulture,
+                _resources.GetString("VideoMetricSummaryFormat"),
+                preset.Size,
+                videoSeconds.ToString("0.##", CultureInfo.CurrentCulture)),
+            PerformanceSummary = string.Format(
+                CultureInfo.CurrentCulture,
+                _resources.GetString("VideoPerformanceSummaryFormat"),
+                generationSeconds),
+        });
     }
 }

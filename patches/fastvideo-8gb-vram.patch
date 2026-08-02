@@ -1,3 +1,39 @@
+diff --git a/fastvideo/entrypoints/openai/video_api.py b/fastvideo/entrypoints/openai/video_api.py
+index 4134175..32d3e0d 100644
+--- a/fastvideo/entrypoints/openai/video_api.py
++++ b/fastvideo/entrypoints/openai/video_api.py
+@@ -43,6 +43,7 @@ from fastvideo.logger import init_logger
+ 
+ logger = init_logger(__name__)
+ router = APIRouter(prefix="/v1/videos", tags=["videos"])
++_GENERATION_LOCK = asyncio.Lock()
+ 
+ 
+ def _build_generation_kwargs(
+@@ -156,10 +157,19 @@ async def _run_generation(request_id: str, kwargs: dict[str, Any]) -> None:
+     try:
+         start = time.perf_counter()
+ 
+-        result = await loop.run_in_executor(
+-            None,
+-            lambda: generator.generate_video(**kwargs),
+-        )
++        # A FastVideo generator owns one multiprocessing executor and is not
++        # safe to invoke concurrently. Serialize jobs so simultaneous API
++        # requests queue instead of corrupting the worker pipe or exhausting
++        # shared GPU memory.
++        async with _GENERATION_LOCK:
++            await VIDEO_STORE.update_fields(
++                request_id,
++                {"status": "in_progress"},
++            )
++            result = await loop.run_in_executor(
++                None,
++                lambda: generator.generate_video(**kwargs),
++            )
+ 
+         elapsed = time.perf_counter() - start
+         update: dict[str, Any] = {
 diff --git a/fastvideo/models/loader/fsdp_load.py b/fastvideo/models/loader/fsdp_load.py
 index 4dfca6e..796184e 100644
 --- a/fastvideo/models/loader/fsdp_load.py
