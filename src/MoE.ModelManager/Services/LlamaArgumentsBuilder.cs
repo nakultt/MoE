@@ -50,6 +50,24 @@ internal static class LlamaArgumentsBuilder
             ]);
         }
 
+        if (model.HasVision)
+        {
+            arguments.AddRange(
+            [
+                "--mmproj", model.VisionProjectorPath!,
+                "--no-mmproj-offload",
+            ]);
+            if (model.VisionImageTokens > 0)
+            {
+                string imageTokens = model.VisionImageTokens.ToString(CultureInfo.InvariantCulture);
+                arguments.AddRange(
+                [
+                    "--image-min-tokens", imageTokens,
+                    "--image-max-tokens", imageTokens,
+                ]);
+            }
+        }
+
         return arguments;
     }
 }

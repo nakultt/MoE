@@ -1,0 +1,116 @@
+diff --git a/fastvideo/entrypoints/openai/video_api.py b/fastvideo/entrypoints/openai/video_api.py
+index 4134175..32d3e0d 100644
+--- a/fastvideo/entrypoints/openai/video_api.py
++++ b/fastvideo/entrypoints/openai/video_api.py
+@@ -43,6 +43,7 @@ from fastvideo.logger import init_logger
+ 
+ logger = init_logger(__name__)
+ router = APIRouter(prefix="/v1/videos", tags=["videos"])
++_GENERATION_LOCK = asyncio.Lock()
+ 
+ 
+ def _build_generation_kwargs(
+@@ -156,10 +157,19 @@ async def _run_generation(request_id: str, kwargs: dict[str, Any]) -> None:
+     try:
+         start = time.perf_counter()
+ 
+-        result = await loop.run_in_executor(
+-            None,
+-            lambda: generator.generate_video(**kwargs),
+-        )
++        # A FastVideo generator owns one multiprocessing executor and is not
++        # safe to invoke concurrently. Serialize jobs so simultaneous API
++        # requests queue instead of corrupting the worker pipe or exhausting
++        # shared GPU memory.
++        async with _GENERATION_LOCK:
++            await VIDEO_STORE.update_fields(
++                request_id,
++                {"status": "in_progress"},
++            )
++            result = await loop.run_in_executor(
++                None,
++                lambda: generator.generate_video(**kwargs),
++            )
+ 
+         elapsed = time.perf_counter() - start
+         update: dict[str, Any] = {
+diff --git a/fastvideo/models/loader/fsdp_load.py b/fastvideo/models/loader/fsdp_load.py
+index 4dfca6e..796184e 100644
+--- a/fastvideo/models/loader/fsdp_load.py
++++ b/fastvideo/models/loader/fsdp_load.py
+@@ -331,6 +331,9 @@ def shard_model(
+                 if local_ignored_params:
+                     module_kwargs = {**fsdp_kwargs, "ignored_params": local_ignored_params}
+                 fully_shard(m, **module_kwargs)
++                if cpu_offload:
++                    m.to("cpu")
++                    torch.cuda.empty_cache()
+                 num_layers_sharded += 1
+     else:
+         # Shard all modules matching conditions
+@@ -341,16 +344,30 @@ def shard_model(
+                 if local_ignored_params:
+                     module_kwargs = {**fsdp_kwargs, "ignored_params": local_ignored_params}
+                 fully_shard(m, **module_kwargs)
++                if cpu_offload:
++                    m.to("cpu")
++                    torch.cuda.empty_cache()
+                 num_layers_sharded += 1
+ 
+         if num_layers_sharded == 0:
+             raise ValueError("No layer modules were sharded. Please check if shard conditions are working as expected.")
+ 
+-    # Finally shard the entire model to account for any stragglers
+-    root_kwargs = fsdp_kwargs
+-    if ignored_params:
+-        root_kwargs = {**fsdp_kwargs, "ignored_params": ignored_params}
+-    fully_shard(model, **root_kwargs)
++    # Finally shard the entire model to account for any stragglers. On a
++    # single-GPU inference worker with CPU offload, wrapping the root after all
++    # child layers are already wrapped briefly materializes the complete model
++    # on CUDA. That initialization spike exceeds 8 GB for UMT5-XXL even though
++    # every individual layer fits. The configured conditions include the Wan
++    # encoder blocks, embeddings and final norm, so no trainable parameters are
++    # left unwrapped in this inference-only path.
++    skip_cpu_offload_root = (
++        cpu_offload
++        and os.environ.get("FASTVIDEO_CPU_OFFLOAD_SKIP_ROOT", "0") == "1"
++    )
++    if not skip_cpu_offload_root:
++        root_kwargs = fsdp_kwargs
++        if ignored_params:
++            root_kwargs = {**fsdp_kwargs, "ignored_params": ignored_params}
++        fully_shard(model, **root_kwargs)
+ 
+ 
+ # TODO(PY): device mesh for cfg parallel
+diff --git a/fastvideo/worker/gpu_worker.py b/fastvideo/worker/gpu_worker.py
+index b4f8e62..cfd810c 100644
+--- a/fastvideo/worker/gpu_worker.py
++++ b/fastvideo/worker/gpu_worker.py
+@@ -76,10 +76,21 @@ class Worker:
+         needs_output = forward_batch.return_frames or (forward_batch.save_video
+                                                        and fastvideo_args.output_type != "latent"
+                                                        and not output_batch.extra.get("audio_only"))
+-        if output_batch.output is not None and not needs_output:
+-            # Drop the decoded tensor before multiprocessing or Ray transports
+-            # the worker result back to the generator.
+-            output_batch.output = torch.empty(0, device="cpu")
++        if output_batch.output is not None:
++            if needs_output:
++                # CUDA IPC needs an additional device allocation while
++                # serializing tensors to the API process. On an 8 GB card the
++                # decoded video and active model layers leave no room for that
++                # allocation, even though inference itself completed. Copy the
++                # final media tensor to host memory before multiprocessing
++                # transport; the generator immediately consumes it on CPU for
++                # frame conversion and MP4 encoding.
++                output_batch.output = output_batch.output.to("cpu")
++                torch.cuda.empty_cache()
++            else:
++                # Drop the decoded tensor before multiprocessing or Ray transports
++                # the worker result back to the generator.
++                output_batch.output = torch.empty(0, device="cpu")
+         return cast(ForwardBatch, output_batch)
+ 
+     def shutdown(self) -> dict[str, Any]:

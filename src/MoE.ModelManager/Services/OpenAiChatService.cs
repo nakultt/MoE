@@ -28,7 +28,7 @@ internal sealed class OpenAiChatService : IOpenAiChatService
         object payload = new
         {
             model = modelId,
-            messages = messages.Select(message => new { role = message.Role, content = message.Content }),
+            messages = messages.Select(CreateMessagePayload),
             stream = true,
             stream_options = new { include_usage = true },
             temperature = 0.2,
@@ -64,6 +64,33 @@ internal sealed class OpenAiChatService : IOpenAiChatService
                 yield return content;
             }
         }
+    }
+
+    private static object CreateMessagePayload(ChatMessage message)
+    {
+        object content = string.IsNullOrWhiteSpace(message.ImageDataUrl)
+            ? message.Content
+            : new object[]
+            {
+                new
+                {
+                    type = "text",
+                    text = message.Content,
+                },
+                new
+                {
+                    type = "image_url",
+                    image_url = new
+                    {
+                        url = message.ImageDataUrl,
+                    },
+                },
+            };
+        return new
+        {
+            role = message.Role,
+            content,
+        };
     }
 
     private static string? ReadContentDelta(string json)

@@ -5,6 +5,17 @@ namespace MoE.ModelManager.Tests;
 [TestClass]
 public sealed class ModelDefinitionTests
 {
+    [DataRow(null, false)]
+    [DataRow("", false)]
+    [DataRow("mmproj.gguf", true)]
+    [TestMethod]
+    public void HasVisionRequiresProjectorPath(string? path, bool expected)
+    {
+        ModelDefinition model = CreateModel(visionProjectorPath: path);
+
+        Assert.AreEqual(expected, model.HasVision);
+    }
+
     [DataRow(null, 2, false)]
     [DataRow("", 2, false)]
     [DataRow("draft.gguf", 0, false)]
@@ -12,21 +23,30 @@ public sealed class ModelDefinitionTests
     [TestMethod]
     public void HasDraftModelRequiresPathAndPositiveTokenCount(string? path, int draftTokens, bool expected)
     {
-        ModelDefinition model = new()
+        ModelDefinition model = CreateModel(draftModelPath: path, draftTokens: draftTokens);
+
+        Assert.AreEqual(expected, model.HasDraftModel);
+    }
+
+    private static ModelDefinition CreateModel(
+        string? visionProjectorPath = null,
+        string? draftModelPath = null,
+        int draftTokens = 0)
+    {
+        return new ModelDefinition
         {
             Id = "test-model",
             DisplayName = "Test model",
             Description = "Test description",
             ModelPath = "model.gguf",
+            VisionProjectorPath = visionProjectorPath,
             ContextSize = 8192,
             CpuMoeLayers = 20,
             CacheType = "q8_0",
             Threads = 16,
-            DraftModelPath = path,
+            DraftModelPath = draftModelPath,
             DraftTokens = draftTokens,
             MeasuredTokensPerSecond = 50.65,
         };
-
-        Assert.AreEqual(expected, model.HasDraftModel);
     }
 }

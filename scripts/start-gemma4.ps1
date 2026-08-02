@@ -21,11 +21,13 @@ $repoRoot = Split-Path $PSScriptRoot -Parent
 $server = Join-Path $LlamaRuntimeDir 'llama-server.exe'
 $model = $GemmaTargetModelPath
 $draftModel = $GemmaMtpQ8ModelPath
+$projector = $GemmaVisionProjectorPath
 
 $requiredFiles = @(
     @{ Name = 'llama-server.exe'; Path = $server },
     @{ Name = 'Gemma target GGUF'; Path = $model },
-    @{ Name = 'Gemma Q8 MTP GGUF'; Path = $draftModel }
+    @{ Name = 'Gemma Q8 MTP GGUF'; Path = $draftModel },
+    @{ Name = 'Gemma vision projector'; Path = $projector }
 )
 foreach ($requiredFile in $requiredFiles) {
     if (-not (Test-Path -LiteralPath $requiredFile.Path)) {
@@ -56,7 +58,9 @@ $serverArgs = @(
     '--spec-type', 'draft-mtp',
     '--spec-draft-model', $draftModel,
     '--spec-draft-n-max', "$DraftTokens",
-    '--spec-draft-ngl', '999'
+    '--spec-draft-ngl', '999',
+    '--mmproj', $projector,
+    '--no-mmproj-offload'
 )
 
 Write-Host "Starting Gemma 4 26B A4B with Q8 MTP acceleration."

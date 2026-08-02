@@ -136,6 +136,13 @@ internal sealed class ModelRuntimeService : IModelRuntimeService
             throw new FileNotFoundException("The target GGUF model was not found.", model.ModelPath);
         }
 
+        if (model.HasVision && !File.Exists(model.VisionProjectorPath))
+        {
+            throw new FileNotFoundException(
+                "The configured multimodal projector was not found.",
+                model.VisionProjectorPath);
+        }
+
         if (model.HasDraftModel && !File.Exists(model.DraftModelPath))
         {
             throw new FileNotFoundException("The configured MTP draft model was not found.", model.DraftModelPath);

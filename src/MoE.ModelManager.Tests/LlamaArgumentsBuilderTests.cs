@@ -46,6 +46,25 @@ public sealed class LlamaArgumentsBuilderTests
         CollectionAssert.Contains(arguments.ToList(), "off");
     }
 
+    [TestMethod]
+    public void BuildAddsCpuResidentVisionProjectorWhenConfigured()
+    {
+        ModelDefinition model = CreateModel(
+            draftModelPath: null,
+            draftTokens: 0,
+            visionProjectorPath: @"C:\Models\mmproj.gguf",
+            visionImageTokens: 1024);
+
+        IReadOnlyList<string> arguments = LlamaArgumentsBuilder.Build(model, 8092);
+
+        CollectionAssert.Contains(arguments.ToList(), "--mmproj");
+        CollectionAssert.Contains(arguments.ToList(), @"C:\Models\mmproj.gguf");
+        CollectionAssert.Contains(arguments.ToList(), "--no-mmproj-offload");
+        CollectionAssert.Contains(arguments.ToList(), "--image-min-tokens");
+        CollectionAssert.Contains(arguments.ToList(), "--image-max-tokens");
+        CollectionAssert.Contains(arguments.ToList(), "1024");
+    }
+
     [DataRow(0)]
     [DataRow(1023)]
     [DataRow(65536)]
@@ -57,7 +76,11 @@ public sealed class LlamaArgumentsBuilderTests
         Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => LlamaArgumentsBuilder.Build(model, port));
     }
 
-    private static ModelDefinition CreateModel(string? draftModelPath, int draftTokens)
+    private static ModelDefinition CreateModel(
+        string? draftModelPath,
+        int draftTokens,
+        string? visionProjectorPath = null,
+        int visionImageTokens = 0)
     {
         return new ModelDefinition
         {
@@ -65,6 +88,8 @@ public sealed class LlamaArgumentsBuilderTests
             DisplayName = "Test model",
             Description = "Test description",
             ModelPath = @"C:\Models\model.gguf",
+            VisionProjectorPath = visionProjectorPath,
+            VisionImageTokens = visionImageTokens,
             ContextSize = 8192,
             CpuMoeLayers = 20,
             CacheType = "f16",

@@ -26,6 +26,16 @@ public sealed class ModelDefinition
     public required string ModelPath { get; init; }
 
     /// <summary>
+    /// Gets the optional multimodal projector used for image understanding.
+    /// </summary>
+    public string? VisionProjectorPath { get; init; }
+
+    /// <summary>
+    /// Gets the fixed image-token budget for dynamic-resolution vision models.
+    /// </summary>
+    public int VisionImageTokens { get; init; }
+
+    /// <summary>
     /// Gets the configured context size.
     /// </summary>
     public int ContextSize { get; init; }
@@ -64,4 +74,9 @@ public sealed class ModelDefinition
     /// Gets a value indicating whether MTP speculative decoding is configured.
     /// </summary>
     public bool HasDraftModel => !string.IsNullOrWhiteSpace(DraftModelPath) && DraftTokens > 0;
+
+    /// <summary>
+    /// Gets a value indicating whether this model accepts image input.
+    /// </summary>
+    public bool HasVision => !string.IsNullOrWhiteSpace(VisionProjectorPath);
 }

@@ -26,7 +26,26 @@ public sealed partial class ChatMessage : ObservableObject
     public partial string Content { get; set; } = string.Empty;
 
     /// <summary>
+    /// Gets or sets an optional base64 data URL attached to this message.
+    /// </summary>
+    [ObservableProperty]
+    public partial string? ImageDataUrl { get; set; }
+
+    /// <summary>
+    /// Gets or sets the display name of the attached image.
+    /// </summary>
+    [ObservableProperty]
+    public partial string? ImageFileName { get; set; }
+
+    /// <summary>
     /// Gets a value indicating whether this message contains assistant Markdown.
     /// </summary>
     public bool IsAssistant => string.Equals(Role, "assistant", StringComparison.Ordinal);
+
+    /// <summary>
+    /// Gets the visible attachment label for a multimodal message.
+    /// </summary>
+    public string ImageAttachmentSummary => string.IsNullOrWhiteSpace(ImageFileName)
+        ? string.Empty
+        : $"📎 {ImageFileName}";
 }

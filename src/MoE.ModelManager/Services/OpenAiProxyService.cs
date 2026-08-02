@@ -5,6 +5,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -17,11 +18,13 @@ namespace MoE.ModelManager.Services;
 internal sealed class OpenAiProxyService : IApiProxyService
 {
     private const int PublicPort = 8081;
-    private const int MaximumRequestBytes = 8 * 1024 * 1024;
+    private const int MaximumRequestBytes = 32 * 1024 * 1024;
     private readonly IAppResources _resources;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IModelRuntimeService _runtimeService;
     private readonly IImageRuntimeService _imageRuntimeService;
+    private readonly IAudioRuntimeService _audioRuntimeService;
+    private readonly IVideoRuntimeService _videoRuntimeService;
     private readonly IRequestTelemetryService _telemetryService;
     private WebApplication? _application;
 
@@ -30,12 +33,16 @@ internal sealed class OpenAiProxyService : IApiProxyService
         IHttpClientFactory httpClientFactory,
         IModelRuntimeService runtimeService,
         IImageRuntimeService imageRuntimeService,
+        IAudioRuntimeService audioRuntimeService,
+        IVideoRuntimeService videoRuntimeService,
         IRequestTelemetryService telemetryService)
     {
         _resources = resources;
         _httpClientFactory = httpClientFactory;
         _runtimeService = runtimeService;
         _imageRuntimeService = imageRuntimeService;
+        _audioRuntimeService = audioRuntimeService;
+        _videoRuntimeService = videoRuntimeService;
         _telemetryService = telemetryService;
     }
 
@@ -52,9 +59,13 @@ internal sealed class OpenAiProxyService : IApiProxyService
 
         WebApplicationBuilder builder = WebApplication.CreateSlimBuilder();
         builder.Logging.ClearProviders();
-        builder.WebHost.ConfigureKestrel(options => options.Listen(IPAddress.Loopback, PublicPort));
+        builder.WebHost.ConfigureKestrel(options =>
+        {
+            options.Limits.MaxRequestBodySize = MaximumRequestBytes;
+            options.Listen(IPAddress.Loopback, PublicPort);
+        });
         WebApplication application = builder.Build();
-        application.MapMethods("/{**path}", ["GET", "POST", "OPTIONS"], HandleAsync);
+        application.MapMethods("/{**path}", ["GET", "POST", "DELETE", "OPTIONS"], HandleAsync);
         await application.StartAsync(cancellationToken);
         _application = application;
     }
@@ -132,7 +143,7 @@ internal sealed class OpenAiProxyService : IApiProxyService
     {
         response.Headers.AccessControlAllowOrigin = "*";
         response.Headers.AccessControlAllowHeaders = "authorization, content-type, x-moe-client";
-        response.Headers.AccessControlAllowMethods = "GET, POST, OPTIONS";
+        response.Headers.AccessControlAllowMethods = "GET, POST, DELETE, OPTIONS";
     }
 
     private static void CopyRequestHeaders(HttpRequest source, HttpRequestMessage destination)
@@ -282,7 +293,32 @@ internal sealed class OpenAiProxyService : IApiProxyService
                 && data.ValueKind == JsonValueKind.Array
                     ? data.GetArrayLength()
                     : 0;
-            return new Usage(promptTokens, completionTokens, tokensPerSecond, generationSeconds, imageCount);
+            string videoStatus = root.TryGetProperty("status", out JsonElement statusElement)
+                ? statusElement.GetString() ?? string.Empty
+                : string.Empty;
+            string videoSize = root.TryGetProperty("size", out JsonElement sizeElement)
+                ? sizeElement.GetString() ?? string.Empty
+                : string.Empty;
+            string videoSeconds = root.TryGetProperty("seconds", out JsonElement secondsElement)
+                ? secondsElement.ToString()
+                : string.Empty;
+            if (root.TryGetProperty("inference_time_s", out JsonElement inferenceElement)
+                && inferenceElement.TryGetDouble(out double inferenceSeconds))
+            {
+                generationSeconds = inferenceSeconds;
+            }
+
+            int videoCount = videoStatus.Equals("completed", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+            return new Usage(
+                PromptTokens: promptTokens,
+                CompletionTokens: completionTokens,
+                TokensPerSecond: tokensPerSecond,
+                GenerationSeconds: generationSeconds,
+                ImageCount: imageCount,
+                VideoCount: videoCount,
+                VideoStatus: videoStatus,
+                VideoSize: videoSize,
+                VideoSeconds: videoSeconds);
         }
         catch (JsonException)
         {
@@ -335,10 +371,16 @@ internal sealed class OpenAiProxyService : IApiProxyService
                 {
                     status = _runtimeService.Current.Status == RuntimeStatus.Ready
                         || _imageRuntimeService.Current.Status == RuntimeStatus.Ready
+                        || _audioRuntimeService.SpeechToTextCurrent.Status == RuntimeStatus.Ready
+                        || _audioRuntimeService.TextToSpeechCurrent.Status == RuntimeStatus.Ready
+                        || _videoRuntimeService.Current.Status == RuntimeStatus.Ready
                             ? "ready"
                             : "unloaded",
                     text_model = _runtimeService.Current.Status.ToString().ToLowerInvariant(),
                     image_model = _imageRuntimeService.Current.Status.ToString().ToLowerInvariant(),
+                    speech_to_text = _audioRuntimeService.SpeechToTextCurrent.Status.ToString().ToLowerInvariant(),
+                    text_to_speech = _audioRuntimeService.TextToSpeechCurrent.Status.ToString().ToLowerInvariant(),
+                    video_model = _videoRuntimeService.Current.Status.ToString().ToLowerInvariant(),
                 });
             return;
         }
@@ -349,26 +391,242 @@ internal sealed class OpenAiProxyService : IApiProxyService
             return;
         }
 
+        if (path.StartsWith("/v1/audio", StringComparison.OrdinalIgnoreCase))
+        {
+            bool isSpeechRequest = path.Equals("/v1/audio/speech", StringComparison.OrdinalIgnoreCase)
+                && HttpMethods.IsPost(context.Request.Method);
+            bool isTranscriptionRequest = path.Equals(
+                "/v1/audio/transcriptions",
+                StringComparison.OrdinalIgnoreCase)
+                && HttpMethods.IsPost(context.Request.Method);
+            if (!isSpeechRequest && !isTranscriptionRequest)
+            {
+                context.Response.StatusCode = StatusCodes.Status404NotFound;
+                return;
+            }
+
+            RuntimeStatus audioStatus = isSpeechRequest
+                ? _audioRuntimeService.TextToSpeechCurrent.Status
+                : _audioRuntimeService.SpeechToTextCurrent.Status;
+            if (audioStatus != RuntimeStatus.Ready)
+            {
+                string message = isSpeechRequest
+                    ? _resources.GetString("ApiNoTextToSpeechModel")
+                    : _resources.GetString("ApiNoSpeechToTextModel");
+                await WriteOpenAiErrorAsync(context, StatusCodes.Status503ServiceUnavailable, message);
+                return;
+            }
+
+            if (isSpeechRequest)
+            {
+                await HandleSpeechAsync(context);
+                return;
+            }
+
+            await HandleTranscriptionAsync(context);
+            return;
+        }
+
         bool isImageRequest = path.StartsWith("/v1/images", StringComparison.OrdinalIgnoreCase);
+        bool isVideoRequest = path.StartsWith("/v1/videos", StringComparison.OrdinalIgnoreCase);
         bool isModelListRequest = path.Equals("/v1/models", StringComparison.OrdinalIgnoreCase);
         bool useImageRuntime = isImageRequest
             || (isModelListRequest
                 && _runtimeService.Current.Status != RuntimeStatus.Ready
                 && _imageRuntimeService.Current.Status == RuntimeStatus.Ready);
-        RuntimeStatus requiredStatus = useImageRuntime
-            ? _imageRuntimeService.Current.Status
-            : _runtimeService.Current.Status;
+        bool useVideoRuntime = isVideoRequest
+            || (isModelListRequest
+                && _runtimeService.Current.Status != RuntimeStatus.Ready
+                && _imageRuntimeService.Current.Status != RuntimeStatus.Ready
+                && _videoRuntimeService.Current.Status == RuntimeStatus.Ready);
+        RuntimeStatus requiredStatus = useVideoRuntime
+            ? _videoRuntimeService.Current.Status
+            : useImageRuntime
+                ? _imageRuntimeService.Current.Status
+                : _runtimeService.Current.Status;
         if (requiredStatus != RuntimeStatus.Ready)
         {
-            string messageKey = useImageRuntime ? "ApiNoImageModel" : "ApiNoModel";
+            string messageKey = useVideoRuntime
+                ? "ApiNoVideoModel"
+                : useImageRuntime
+                    ? "ApiNoImageModel"
+                    : "ApiNoModel";
             await WriteOpenAiErrorAsync(context, StatusCodes.Status503ServiceUnavailable, _resources.GetString(messageKey));
             return;
         }
 
-        await ForwardAsync(context, path, useImageRuntime);
+        await ForwardAsync(context, path, useImageRuntime, useVideoRuntime);
     }
 
-    private async Task ForwardAsync(HttpContext context, string path, bool useImageRuntime)
+    private async Task HandleSpeechAsync(HttpContext context)
+    {
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        byte[] body = await ReadRequestBodyAsync(context.Request, context.RequestAborted);
+        SpeechRequest? request;
+        try
+        {
+            request = JsonSerializer.Deserialize<SpeechRequest>(body);
+        }
+        catch (JsonException)
+        {
+            request = null;
+        }
+
+        if (request is null || string.IsNullOrWhiteSpace(request.Input))
+        {
+            await WriteOpenAiErrorAsync(
+                context,
+                StatusCodes.Status400BadRequest,
+                _resources.GetString("ApiInvalidRequest"));
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.ResponseFormat)
+            && !request.ResponseFormat.Equals("wav", StringComparison.OrdinalIgnoreCase))
+        {
+            await WriteOpenAiErrorAsync(
+                context,
+                StatusCodes.Status400BadRequest,
+                "This local runtime currently supports response_format=wav.");
+            return;
+        }
+
+        KokoroVoice? voice = _audioRuntimeService.Voices.FirstOrDefault(
+            item => item.Id.Equals(request.Voice, StringComparison.OrdinalIgnoreCase));
+        voice ??= _audioRuntimeService.Voices.Count > 0 ? _audioRuntimeService.Voices[0] : null;
+        if (voice is null)
+        {
+            await WriteOpenAiErrorAsync(context, StatusCodes.Status500InternalServerError, "No Kokoro voices are configured.");
+            return;
+        }
+
+        GeneratedSpeechResult result = await _audioRuntimeService.SynthesizeAsync(
+            request.Input,
+            voice,
+            request.Speed <= 0 ? 1f : request.Speed,
+            context.RequestAborted);
+        byte[] wave = await File.ReadAllBytesAsync(result.OutputPath, context.RequestAborted);
+        context.Response.StatusCode = StatusCodes.Status200OK;
+        context.Response.ContentType = "audio/wav";
+        context.Response.ContentLength = wave.Length;
+        await context.Response.Body.WriteAsync(wave, context.RequestAborted);
+        stopwatch.Stop();
+        AddAudioMetric(
+            context,
+            "/v1/audio/speech",
+            request.Model ?? "kokoro-82m",
+            result.AudioDurationSeconds,
+            stopwatch.Elapsed.TotalMilliseconds,
+            "speech generated");
+    }
+
+    private async Task HandleTranscriptionAsync(HttpContext context)
+    {
+        if (!context.Request.HasFormContentType)
+        {
+            await WriteOpenAiErrorAsync(context, StatusCodes.Status400BadRequest, "Use multipart/form-data with a WAV file.");
+            return;
+        }
+
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        IFormCollection form = await context.Request.ReadFormAsync(context.RequestAborted);
+        IFormFile? file = form.Files.GetFile("file");
+        if (file is null || file.Length == 0)
+        {
+            await WriteOpenAiErrorAsync(context, StatusCodes.Status400BadRequest, "The file field is required.");
+            return;
+        }
+
+        string tempDirectory = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "MoEModelManager",
+            "Temp");
+        Directory.CreateDirectory(tempDirectory);
+        string tempPath = Path.Combine(tempDirectory, $"transcription-{Guid.NewGuid():N}.wav");
+        try
+        {
+            await using (FileStream stream = File.Create(tempPath))
+            {
+                await file.CopyToAsync(stream, context.RequestAborted);
+            }
+
+            AudioTranscriptionResult result = await _audioRuntimeService.TranscribeAsync(
+                tempPath,
+                context.RequestAborted);
+            string responseFormat = form["response_format"].ToString();
+            if (responseFormat.Equals("text", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Response.StatusCode = StatusCodes.Status200OK;
+                context.Response.ContentType = "text/plain; charset=utf-8";
+                await context.Response.WriteAsync(result.Text, context.RequestAborted);
+            }
+            else
+            {
+                await WriteJsonAsync(context, StatusCodes.Status200OK, new
+                {
+                    text = result.Text,
+                    duration = result.AudioDurationSeconds,
+                    tokens = result.Tokens,
+                    timestamps = result.Timestamps,
+                });
+            }
+
+            stopwatch.Stop();
+            AddAudioMetric(
+                context,
+                "/v1/audio/transcriptions",
+                form["model"].FirstOrDefault() ?? "parakeet-tdt-0.6b-v3",
+                result.AudioDurationSeconds,
+                stopwatch.Elapsed.TotalMilliseconds,
+                "audio transcribed");
+        }
+        finally
+        {
+            File.Delete(tempPath);
+        }
+    }
+
+    private void AddAudioMetric(
+        HttpContext context,
+        string endpoint,
+        string model,
+        double audioSeconds,
+        double durationMilliseconds,
+        string action)
+    {
+        string source = context.Request.Headers.TryGetValue(
+            "X-MoE-Client",
+            out Microsoft.Extensions.Primitives.StringValues clientHeader)
+            && clientHeader.ToString().Equals("desktop", StringComparison.OrdinalIgnoreCase)
+                ? _resources.GetString("SourceDesktop")
+                : _resources.GetString("SourceExternal");
+        double realtimeFactor = audioSeconds / Math.Max(durationMilliseconds / 1000d, 0.001d);
+        _telemetryService.Add(new RequestMetric
+        {
+            Timestamp = DateTimeOffset.Now,
+            Source = source,
+            Endpoint = endpoint,
+            Model = model,
+            StatusCode = StatusCodes.Status200OK,
+            DurationMilliseconds = durationMilliseconds,
+            QuantitySummary = string.Format(
+                CultureInfo.CurrentCulture,
+                _resources.GetString("AudioMetricSummaryFormat"),
+                audioSeconds,
+                action),
+            PerformanceSummary = string.Format(
+                CultureInfo.CurrentCulture,
+                _resources.GetString("AudioPerformanceSummaryFormat"),
+                durationMilliseconds / 1000d,
+                realtimeFactor),
+        });
+    }
+
+    private async Task ForwardAsync(
+        HttpContext context,
+        string path,
+        bool useImageRuntime,
+        bool useVideoRuntime)
     {
         Stopwatch stopwatch = Stopwatch.StartNew();
         byte[] requestBody = await ReadRequestBodyAsync(context.Request, context.RequestAborted);
@@ -383,8 +641,15 @@ internal sealed class OpenAiProxyService : IApiProxyService
             && clientHeader.ToString().Equals("desktop", StringComparison.OrdinalIgnoreCase)
                 ? _resources.GetString("SourceDesktop")
                 : _resources.GetString("SourceExternal");
-        int backendPort = useImageRuntime ? ImageRuntimeService.BackendPort : ModelRuntimeService.BackendPort;
-        Uri backendUri = new($"http://127.0.0.1:{backendPort}{path}{context.Request.QueryString}");
+        int backendPort = useVideoRuntime
+            ? VideoRuntimeService.BackendPort
+            : useImageRuntime
+                ? ImageRuntimeService.BackendPort
+                : ModelRuntimeService.BackendPort;
+        string backendPath = path.Equals("/v1/videos/generations", StringComparison.OrdinalIgnoreCase)
+            ? "/v1/videos"
+            : path;
+        Uri backendUri = new($"http://127.0.0.1:{backendPort}{backendPath}{context.Request.QueryString}");
         using HttpRequestMessage backendRequest = new(new HttpMethod(context.Request.Method), backendUri);
         CopyRequestHeaders(context.Request, backendRequest);
         if (requestBody.Length > 0)
@@ -394,7 +659,8 @@ internal sealed class OpenAiProxyService : IApiProxyService
                 context.Request.ContentType ?? "application/json");
         }
 
-        HttpClient client = _httpClientFactory.CreateClient(useImageRuntime ? "ImageBackend" : "LlamaBackend");
+        string clientName = useVideoRuntime ? "VideoBackend" : useImageRuntime ? "ImageBackend" : "LlamaBackend";
+        HttpClient client = _httpClientFactory.CreateClient(clientName);
         using HttpResponseMessage backendResponse = await client.SendAsync(
             backendRequest,
             HttpCompletionOption.ResponseHeadersRead,
@@ -414,20 +680,48 @@ internal sealed class OpenAiProxyService : IApiProxyService
         double tokensPerSecond = usage.TokensPerSecond > 0
             ? usage.TokensPerSecond
             : usage.CompletionTokens / Math.Max(generationSeconds, 0.001d);
-        string quantitySummary = useImageRuntime
-            ? string.Format(CultureInfo.CurrentCulture, _resources.GetString("ImageMetricSummaryFormat"), usage.ImageCount)
-            : string.Format(
+        if (useVideoRuntime
+            && (path.EndsWith("/content", StringComparison.OrdinalIgnoreCase)
+                || (HttpMethods.IsGet(context.Request.Method)
+                    && path.Equals("/v1/videos", StringComparison.OrdinalIgnoreCase))
+                || (HttpMethods.IsGet(context.Request.Method)
+                    && usage.VideoStatus is "queued" or "in_progress")))
+        {
+            return;
+        }
+
+        string quantitySummary = useVideoRuntime
+            ? usage.VideoCount > 0
+                ? string.Format(
+                    CultureInfo.CurrentCulture,
+                    _resources.GetString("VideoMetricSummaryFormat"),
+                    usage.VideoSize,
+                    usage.VideoSeconds)
+                : string.Format(
+                    CultureInfo.CurrentCulture,
+                    _resources.GetString("VideoJobStatusFormat"),
+                    string.IsNullOrWhiteSpace(usage.VideoStatus) ? "queued" : usage.VideoStatus)
+            : useImageRuntime
+                ? string.Format(CultureInfo.CurrentCulture, _resources.GetString("ImageMetricSummaryFormat"), usage.ImageCount)
+                : string.Format(
                 CultureInfo.CurrentCulture,
                 _resources.GetString("TokenMetricSummaryFormat"),
                 usage.CompletionTokens,
                 usage.PromptTokens);
-        string performanceSummary = useImageRuntime
-            ? string.Format(
-                CultureInfo.CurrentCulture,
-                _resources.GetString("ImagePerformanceSummaryFormat"),
-                stopwatch.Elapsed.TotalSeconds,
-                usage.ImageCount * 60d / Math.Max(stopwatch.Elapsed.TotalSeconds, 0.001d))
-            : string.Format(
+        string performanceSummary = useVideoRuntime
+            ? usage.VideoCount > 0
+                ? string.Format(
+                    CultureInfo.CurrentCulture,
+                    _resources.GetString("VideoPerformanceSummaryFormat"),
+                    generationSeconds)
+                : _resources.GetString("VideoQueuedPerformanceSummary")
+            : useImageRuntime
+                ? string.Format(
+                    CultureInfo.CurrentCulture,
+                    _resources.GetString("ImagePerformanceSummaryFormat"),
+                    stopwatch.Elapsed.TotalSeconds,
+                    usage.ImageCount * 60d / Math.Max(stopwatch.Elapsed.TotalSeconds, 0.001d))
+                : string.Format(
                 CultureInfo.CurrentCulture,
                 _resources.GetString("TokenPerformanceSummaryFormat"),
                 tokensPerSecond,
@@ -438,7 +732,11 @@ internal sealed class OpenAiProxyService : IApiProxyService
             Source = source,
             Endpoint = path,
             Model = string.IsNullOrWhiteSpace(requestedModel)
-                ? (useImageRuntime ? _imageRuntimeService.Current.ModelId : _runtimeService.Current.ModelId)
+                ? (useVideoRuntime
+                    ? _videoRuntimeService.Current.ModelId
+                    : useImageRuntime
+                        ? _imageRuntimeService.Current.ModelId
+                        : _runtimeService.Current.ModelId)
                     ?? _resources.GetString("UnknownModel")
                 : requestedModel,
             StatusCode = (int)backendResponse.StatusCode,
@@ -457,5 +755,27 @@ internal sealed class OpenAiProxyService : IApiProxyService
         int CompletionTokens = 0,
         double TokensPerSecond = 0,
         double GenerationSeconds = 0,
-        int ImageCount = 0);
+        int ImageCount = 0,
+        int VideoCount = 0,
+        string VideoStatus = "",
+        string VideoSize = "",
+        string VideoSeconds = "");
+
+    private sealed class SpeechRequest
+    {
+        [JsonPropertyName("model")]
+        public string? Model { get; init; }
+
+        [JsonPropertyName("input")]
+        public string Input { get; init; } = string.Empty;
+
+        [JsonPropertyName("voice")]
+        public string Voice { get; init; } = "af_heart";
+
+        [JsonPropertyName("response_format")]
+        public string ResponseFormat { get; init; } = "wav";
+
+        [JsonPropertyName("speed")]
+        public float Speed { get; init; } = 1f;
+    }
 }
