@@ -19,7 +19,117 @@ Native WinUI 3 desktop control center for local Qwen3.6, Gemma 4, FLUX.2 Klein, 
 
 The GGUF and safetensors files are intentionally not stored in this repository. The app and runtimes live on `E:`, while the large model files stay on `C:`.
 
+---
+
+## Environment Setup & Reproduction Guide
+
+Follow these steps to set up a fresh clone into a fully operational local AI control center.
+
+### Prerequisites
+
+| Requirement | Specification |
+| --- | --- |
+| **Operating System** | Windows 11 x64 |
+| **GPU** | NVIDIA RTX GPU with CUDA driver installed (8 GB VRAM minimum, RTX 4060 verified) |
+| **System RAM** | 32 GB minimum (64 GB host RAM recommended for sustained FastWan video generation) |
+| **SDK & Workload** | [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) + Windows application development workload |
+| **Build Tools** | [Git](https://git-scm.com/), [CMake](https://cmake.org/), NVIDIA CUDA Toolkit (12.x and 13.x) |
+| **WSL Support** | WSL 2 with Ubuntu (required for FastVideo video runtime) |
+| **Python Tooling** | `uv` and Hugging Face CLI (`uv tool install huggingface-hub`) |
+
+---
+
+### Step-by-Step Setup
+
+#### 1. Clone the repository
+
+```powershell
+git clone https://github.com/nakultt/MoE.git
+Set-Location MoE
+```
+
+#### 2. Verify & Configure WSL 2 Environment (for FastVideo Video Generation)
+
+FastVideo runs inside WSL 2 (Ubuntu) and requires sufficient RAM allocation (`28GB` recommended) and matching username configuration:
+
+```powershell
+# Run WSL diagnostic, auto-configure %USERPROFILE%\.wslconfig memory limits, and sync video-model.json to your WSL username
+.\scripts\verify-wsl-environment.ps1 -ConfigureWslConfig
+
+# If .wslconfig was created or updated, restart WSL for changes to take effect:
+wsl --shutdown
+```
+
+#### 3. Install local inference runtimes
+
+Run the runtime installation scripts to download and compile native backends:
+
+```powershell
+# Install llama.cpp release b10218 with CUDA 13.3 into runtime\llama.cpp-b10218-cuda13
+.\scripts\install-runtime.ps1
+
+# Clone and compile stable-diffusion.cpp (e31a86c) with CUDA 12 into runtime\stable-diffusion.cpp
+.\scripts\install-image-runtime.ps1
+```
+
+#### 4. Download model weights
+
+Run the automated Hugging Face setup scripts to download model weights into your local model directory (default: `C:\Users\<user>\Documents\Codex\...` or custom directory):
+
+```powershell
+# Download Qwen3.6 35B A3B & Gemma 4 26B A4B GGUFs, vision projectors, and MTP draft models (~36 GB)
+.\scripts\setup-llm-models.ps1 -ModelRoot 'C:\path\to\your\models'
+
+# Download FLUX.2 Klein 4B GGUF, Qwen3-4B text encoder, and VAE safetensors (~7.2 GB)
+.\scripts\install-image-model.ps1 -ModelDirectory 'C:\path\to\your\models\flux2-klein'
+
+# Setup FastVideo WSL environment, apply 8 GB VRAM patch, and download FastWan2.2 5B video model (~24 GB)
+.\scripts\setup-video-runtime.ps1 -ModelDirectory 'C:\path\to\your\models\fastwan2.2-5b'
+
+# Download Parakeet TDT 0.6B v3 STT & Kokoro 82M TTS ONNX model archives (~800 MB)
+.\scripts\setup-audio-models.ps1 -ModelRoot 'C:\path\to\your\models'
+```
+
+#### 5. Configure local model paths
+
+If your models are stored outside the default directory, update the paths in the JSON configuration files under `src\MoE.ModelManager\Configuration\`:
+
+- **Text models:** [models.json](src/MoE.ModelManager/Configuration/models.json) (`modelPath`, `visionProjectorPath`, `draftModelPath`)
+- **Image model:** [image-model.json](src/MoE.ModelManager/Configuration/image-model.json) (`diffusionModelPath`, `textEncoderPath`, `vaePath`)
+- **Video model:** [video-model.json](src/MoE.ModelManager/Configuration/video-model.json) (`modelPath`)
+- **Audio models:** [audio-model.json](src/MoE.ModelManager/Configuration/audio-model.json) (`parakeetModelPath`, `kokoroModelPath`)
+
+Also verify path settings in `settings.ps1` if using fallback llama.cpp Web UI launcher scripts.
+
+#### 6. Build and run the desktop application
+
+```powershell
+# Build and run Debug build
+dotnet build .\src\MoE.ModelManager\MoE.ModelManager.csproj -c Debug -p:Platform=x64
+dotnet run --project .\src\MoE.ModelManager\MoE.ModelManager.csproj -c Debug -p:Platform=x64
+```
+
+#### 7. Run test suite
+
+```powershell
+dotnet test .\src\MoE.ModelManager.Tests\MoE.ModelManager.Tests.csproj -c Debug -p:Platform=x64
+```
+
+#### 8. Build MSIX installer (optional)
+
+
+```powershell
+# Generate self-signed certificate and build x64 MSIX package
+.\scripts\build-installer.ps1
+
+# Install locally via App Installer
+.\scripts\install-app.ps1
+```
+
+---
+
 ### Local speech configuration
+
 
 The Audio tab exposes Parakeet and Kokoro as independent CPU runtimes, each with its own load and eject controls. Parakeet handles multilingual transcription and token timestamps; Kokoro provides the configured American and British English voices. Load only the capability you need, or keep both loaded. Because they run through native ONNX in the WinUI process, they use no meaningful GPU memory and can remain loaded while a text, image, or video model uses the RTX 4060.
 
@@ -1426,6 +1536,8 @@ Invoke-WebRequest `
 
 The API supports `POST /v1/videos`, `GET /v1/videos/{id}`, `GET /v1/videos/{id}/content`, and `DELETE /v1/videos/{id}`. `POST /v1/videos/generations` is also accepted as a convenience alias.
 
+---
+
 ## Build the installer
 
 ```powershell
@@ -1433,7 +1545,6 @@ Set-Location E:\Github\MoE
 .\scripts\build-installer.ps1
 ```
 
-Output:
 
 - `artifacts\MoE.ModelManager_1.4.0.0_x64.msix`
 - `artifacts\MoE.ModelManager-devcert.cer`
