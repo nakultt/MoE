@@ -9,6 +9,7 @@ $ErrorActionPreference = 'Stop'
 $fastVideoRevision = '1b2b2a0161bc6b3b80158d1fa6380a051c6530c7'
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $runtimeDirectory = Join-Path $repositoryRoot 'runtime\fastvideo'
+$compatibilityPatch = Join-Path $repositoryRoot 'patches\fastvideo-8gb-vram.patch'
 
 function ConvertTo-WslPath {
     param([Parameter(Mandatory)][string]$Path)
@@ -34,6 +35,19 @@ if (-not (Test-Path -LiteralPath (Join-Path $runtimeDirectory '.git'))) {
 
 git -C $runtimeDirectory fetch origin $fastVideoRevision
 git -C $runtimeDirectory checkout --detach $fastVideoRevision
+
+git -C $runtimeDirectory apply --reverse --check $compatibilityPatch 2>$null
+if ($LASTEXITCODE -ne 0) {
+    git -C $runtimeDirectory apply --check $compatibilityPatch
+    if ($LASTEXITCODE -ne 0) {
+        throw 'The FastVideo 8 GB compatibility patch does not apply to the pinned revision.'
+    }
+
+    git -C $runtimeDirectory apply $compatibilityPatch
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Could not apply the FastVideo 8 GB compatibility patch.'
+    }
+}
 
 $wslRuntimeDirectory = ConvertTo-WslPath $runtimeDirectory
 $setupCommand = @"

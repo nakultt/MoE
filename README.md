@@ -30,7 +30,11 @@ s of Kokoro speech and Parakeet transcribed the result exactly in 0.29 seconds. 
 
 The video model is `FastVideo/FastWan2.2-TI2V-5B-FullAttn-Diffusers`. The 24.2 GB repository remains on disk and is not copied into the MSIX. FastVideo runs inside Ubuntu WSL and uses FP8 transformer quantization plus layerwise CPU-to-GPU offload so the active layer and working tensors fit the 8 GB RTX 4060. Text encoder and VAE components are offloaded between stages.
 
-The app provides three initial presets. Their real elapsed times will be recorded after the complete model is downloaded and benchmarked on this machine.
+The app provides three initial presets. A complete Turbo API smoke test on the RTX 4060 8 GB produced a valid H.264 MP4 at 384×384, 25 frames, 12 FPS, and 2.083 seconds. Model initialization took about 7 minutes 25 seconds and generation took 458.15 seconds (7 minutes 38 seconds). The measured VRAM high-water mark from `nvidia-smi` was approximately 7.62 GB.
+
+This configuration is capacity-oriented, not real-time. During the verified run, WSL used about 23 GB RAM and 3.2 GB swap while Windows had only 0.10 GB free. Expect heavy SSD paging on a 32 GB machine; 64 GB system RAM is recommended for sustained video work. Eject the video runtime after generation to release RAM and swap pressure.
+
+The pinned FastVideo checkout receives [an 8 GB compatibility patch](patches/fastvideo-8gb-vram.patch) during setup. It prevents the CPU-offloaded UMT5 root wrapper from briefly materializing the full encoder on CUDA and moves decoded media to CPU before multiprocessing transport, avoiding a second CUDA allocation after generation.
 
 | Preset | Native output | Denoising steps |
 | --- | --- | ---: |
@@ -107,7 +111,7 @@ Requirements:
 - Windows 11 x64
 - NVIDIA RTX GPU with a current driver
 - .NET 10 SDK and the Windows application development workload
-- WSL 2 with Ubuntu and at least 24 GB assigned memory for video generation
+- WSL 2 with Ubuntu and at least 24 GB assigned memory for video generation (64 GB host RAM recommended; 32 GB works by paging heavily)
 
 Install or verify the pinned local runtime:
 

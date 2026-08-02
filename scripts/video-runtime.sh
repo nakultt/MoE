@@ -20,6 +20,7 @@ case "${command_name}" in
     mkdir -p "$(dirname "${pid_file}")"
     printf '%s\n' "$$" > "${pid_file}"
     export FASTVIDEO_ATTENTION_BACKEND="TORCH_SDPA"
+    export FASTVIDEO_CPU_OFFLOAD_SKIP_ROOT="1"
     export PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True"
     exec "$@"
     ;;
