@@ -15,6 +15,9 @@ param(
     [ValidateRange(128, 2048)]
     [int]$GenerateTokens = 512,
 
+    [ValidateRange(1, 5)]
+    [int]$Runs = 3,
+
     [ValidateRange(1024, 65535)]
     [int]$Port = 8093,
 
@@ -113,31 +116,51 @@ try {
     }
 
     $gpuMemoryMiB = [int]((& nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits | Select-Object -First 1).Trim())
-    $payload = @{
-        prompt = 'Write a detailed technical guide of at least 800 words explaining how mixture-of-experts language models route tokens, use memory, and achieve fast local inference. Include concrete examples and practical tradeoffs.'
-        n_predict = $GenerateTokens
-        temperature = 0
-        seed = 42
-        cache_prompt = $false
-    } | ConvertTo-Json
+    $samples = @()
+    $wallSeconds = @()
+    $lastResponse = $null
+    for ($run = 1; $run -le $Runs; $run++) {
+        $payload = @{
+            prompt = 'Write a detailed technical guide of at least 800 words explaining how mixture-of-experts language models route tokens, use memory, and achieve fast local inference. Include concrete examples and practical tradeoffs.'
+            n_predict = $GenerateTokens
+            temperature = 0
+            seed = 42
+            cache_prompt = $false
+        } | ConvertTo-Json
 
-    $wall = [System.Diagnostics.Stopwatch]::StartNew()
-    $response = Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:$Port/completion" -ContentType 'application/json' -Body $payload -TimeoutSec 600
-    $wall.Stop()
+        $wall = [System.Diagnostics.Stopwatch]::StartNew()
+        $lastResponse = Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:$Port/completion" -ContentType 'application/json' -Body $payload -TimeoutSec 600
+        $wall.Stop()
+        $samples += [double]$lastResponse.timings.predicted_per_second
+        $wallSeconds += $wall.Elapsed.TotalSeconds
+    }
+
+    $orderedSamples = @($samples | Sort-Object)
+    $middle = [int][math]::Floor($orderedSamples.Count / 2)
+    $median = if ($orderedSamples.Count % 2 -eq 0) {
+        ($orderedSamples[$middle - 1] + $orderedSamples[$middle]) / 2
+    } else {
+        $orderedSamples[$middle]
+    }
 
     [pscustomobject]@{
         cpu_moe_layers = $CpuMoeLayers
         draft = $Draft
         draft_tokens = $(if ($Draft -eq 'none') { 0 } else { $DraftTokens })
         context = $Context
-        generated_tokens = $response.tokens_predicted
-        prompt_tokens = $response.tokens_evaluated
-        generation_tps = [math]::Round([double]$response.timings.predicted_per_second, 2)
-        prompt_tps = [math]::Round([double]$response.timings.prompt_per_second, 2)
-        wall_seconds = [math]::Round($wall.Elapsed.TotalSeconds, 2)
+        generated_tokens_per_run = $GenerateTokens
+        runs = $Runs
+        samples_tps = @($samples | ForEach-Object { [math]::Round($_, 2) })
+        median_tps = [math]::Round($median, 2)
+        average_tps = [math]::Round(($samples | Measure-Object -Average).Average, 2)
+        minimum_tps = [math]::Round(($samples | Measure-Object -Minimum).Minimum, 2)
+        maximum_tps = [math]::Round(($samples | Measure-Object -Maximum).Maximum, 2)
+        prompt_tokens = $lastResponse.tokens_evaluated
+        prompt_tps = [math]::Round([double]$lastResponse.timings.prompt_per_second, 2)
+        average_wall_seconds = [math]::Round(($wallSeconds | Measure-Object -Average).Average, 2)
         gpu_memory_mib = $gpuMemoryMiB
-        stopped_eos = $response.stopped_eos
-        stopped_limit = $response.stopped_limit
+        stopped_eos = $lastResponse.stopped_eos
+        stopped_limit = $lastResponse.stopped_limit
     } | ConvertTo-Json
 } finally {
     if ($null -ne $process -and -not $process.HasExited) {

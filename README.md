@@ -18,7 +18,7 @@ The GGUF files are intentionally not stored in this repository. The app and llam
 | Model | Context | CPU MoE layers | Speculative decoding | Sustained result |
 | --- | ---: | ---: | --- | ---: |
 | Qwen3.6 35B A3B Q4_K_M | 16,384 | 30 | Off | 34.10 TPS |
-| Gemma 4 26B A4B QAT UD-Q4_K_XL | 8,192 | 20 | Q8 MTP, draft length 2 | 50.65 TPS |
+| Gemma 4 26B A4B QAT UD-Q4_K_XL | 8,192 | 20 | Q8 MTP, draft length 2 | 51.51 TPS |
 
 Gemma is one main model. Its small Q8 MTP GGUF is a speculative-decoding helper, not a second chat model. Both files are loaded together when Gemma is selected.
 
@@ -39,6 +39,21 @@ The end-to-end comparison used a 16,384-token context, 30 CPU MoE layers, a dete
 | 4 | 9.95 TPS |
 
 Re-run the comparison with `benchmarks\benchmark-qwen3.6-config.ps1 -DraftTokens <0-8>`. Draft length `0` is the verified winner and matches the default app and launcher configuration.
+
+### Gemma MTP and CPU-offload comparison
+
+Gemma was reverified with the same deterministic long-form prompt and three 512-token generations for the competitive configurations. Q8 MTP with two draft tokens remains the fastest option:
+
+| Gemma draft configuration | CPU MoE layers | Median generation speed |
+| --- | ---: | ---: |
+| None | 20 | 31.27 TPS |
+| Q4 MTP, length 2 | 20 | 48.95 TPS |
+| Q8 MTP, length 1 | 20 | 42.34 TPS |
+| **Q8 MTP, length 2** | **20** | **51.51 TPS** |
+| Q8 MTP, length 3 | 20 | 38.56 TPS |
+| Q8 MTP, length 4 | 20 | 34.23 TPS |
+
+The winning Q8 length-2 configuration was also screened with 18–22 CPU MoE layers. Twenty layers remained fastest; moving in either direction reduced TPS or left too little VRAM headroom. Re-run an individual combination with `benchmarks\benchmark-gemma-config.ps1 -CpuMoeLayers <0-30> -Draft <none|q4|q8> -DraftTokens <1-8>`.
 
 ## Run from source
 
@@ -68,7 +83,7 @@ If a GGUF moves, edit its absolute path in [models.json](src/MoE.ModelManager/Co
 
 The desktop app is the normal launcher. These scripts are available as a direct llama.cpp fallback and expose both llama.cpp's built-in Web UI and its OpenAI-compatible API.
 
-Gemma with the verified 50.65 TPS Q8 MTP configuration:
+Gemma with the verified 51.51 TPS Q8 MTP configuration:
 
 ```powershell
 Set-Location E:\Github\MoE
