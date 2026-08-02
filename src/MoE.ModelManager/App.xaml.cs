@@ -29,8 +29,10 @@ public partial class App : Application
     {
         IApiProxyService proxy = Services.GetRequiredService<IApiProxyService>();
         IModelRuntimeService runtime = Services.GetRequiredService<IModelRuntimeService>();
+        IImageRuntimeService imageRuntime = Services.GetRequiredService<IImageRuntimeService>();
         await proxy.StopAsync(CancellationToken.None);
         await runtime.EjectAsync(CancellationToken.None);
+        await imageRuntime.EjectAsync(CancellationToken.None);
     }
 
     /// <inheritdoc />
@@ -44,19 +46,26 @@ public partial class App : Application
     {
         ServiceCollection services = new();
         services.AddHttpClient("LlamaBackend", client => client.Timeout = Timeout.InfiniteTimeSpan);
+        services.AddHttpClient("ImageBackend", client => client.Timeout = Timeout.InfiniteTimeSpan);
         services.AddHttpClient("LocalApi", client => client.Timeout = Timeout.InfiniteTimeSpan);
         services.AddSingleton<IAppResources, AppResources>();
         services.AddSingleton<IModelCatalogService, ModelCatalogService>();
+        services.AddSingleton<IImageModelCatalogService, ImageModelCatalogService>();
         services.AddSingleton<IModelRuntimeService, ModelRuntimeService>();
+        services.AddSingleton<IImageRuntimeService, ImageRuntimeService>();
         services.AddSingleton<IRequestTelemetryService, RequestTelemetryService>();
         services.AddSingleton<IApiProxyService, OpenAiProxyService>();
         services.AddSingleton<IOpenAiChatService, OpenAiChatService>();
+        services.AddSingleton<IImageGenerationService, ImageGenerationService>();
         services.AddTransient(provider => new MainViewModel(
             provider.GetRequiredService<IApiProxyService>(),
             provider.GetRequiredService<IAppResources>(),
             provider.GetRequiredService<IModelCatalogService>(),
+            provider.GetRequiredService<IImageModelCatalogService>(),
             provider.GetRequiredService<IModelRuntimeService>(),
+            provider.GetRequiredService<IImageRuntimeService>(),
             provider.GetRequiredService<IOpenAiChatService>(),
+            provider.GetRequiredService<IImageGenerationService>(),
             provider.GetRequiredService<IRequestTelemetryService>()));
         return services.BuildServiceProvider();
     }
@@ -66,6 +75,11 @@ public partial class App : Application
         if (Services.GetService<IModelRuntimeService>() is ModelRuntimeService runtime)
         {
             runtime.StopImmediately();
+        }
+
+        if (Services.GetService<IImageRuntimeService>() is ImageRuntimeService imageRuntime)
+        {
+            imageRuntime.StopImmediately();
         }
     }
 

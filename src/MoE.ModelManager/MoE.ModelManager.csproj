@@ -32,8 +32,13 @@
     <Content Include="Assets\AppIcon.ico" />
     <Content Include="Assets\Wide310x150Logo.scale-200.png" />
     <Content Include="Configuration\models.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Configuration\image-model.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\runtime\llama.cpp-b10218-cuda13\**\*">
       <Link>Runtime\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\..\runtime\stable-diffusion.cpp\**\*">
+      <Link>ImageRuntime\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

@@ -2,7 +2,10 @@ using System.Collections.Specialized;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media.Imaging;
+using MoE.ModelManager.Models;
 using MoE.ModelManager.ViewModels;
+using Windows.Storage.Streams;
 
 namespace MoE.ModelManager;
 
@@ -18,6 +21,7 @@ public sealed partial class MainPage : Page
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
         ViewModel.Messages.CollectionChanged += OnMessagesChanged;
+        ViewModel.ImageGenerated += OnImageGenerated;
     }
 
     public MainViewModel ViewModel { get; }
@@ -37,6 +41,7 @@ public sealed partial class MainPage : Page
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
         ViewModel.Messages.CollectionChanged -= OnMessagesChanged;
+        ViewModel.ImageGenerated -= OnImageGenerated;
         ViewModel.Dispose();
     }
 
@@ -46,5 +51,18 @@ public sealed partial class MainPage : Page
         {
             ChatList.ScrollIntoView(ViewModel.Messages[^1]);
         }
+    }
+
+    private async void OnImageGenerated(GeneratedImageResult result)
+    {
+        using InMemoryRandomAccessStream stream = new();
+        using DataWriter writer = new(stream);
+        writer.WriteBytes(result.Data);
+        await writer.StoreAsync();
+        stream.Seek(0);
+        BitmapImage bitmap = new();
+        bitmap.SetSource(stream);
+        GeneratedImage.Source = bitmap;
+        ImagePlaceholder.Visibility = Visibility.Collapsed;
     }
 }

@@ -12,6 +12,9 @@
 
 # Models remain outside this repository; guard against accidental commits.
 *.gguf
+*.safetensors
+*.sft
+**/*-keyed.png
 /models/
 
 # Generated benchmark, server, publish, and installer output.

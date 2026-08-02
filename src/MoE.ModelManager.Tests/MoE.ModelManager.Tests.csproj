@@ -17,9 +17,11 @@
 
   <ItemGroup>
     <Compile Include="..\MoE.ModelManager\Models\ModelDefinition.cs" Link="Source\ModelDefinition.cs" />
+    <Compile Include="..\MoE.ModelManager\Models\ImageModelDefinition.cs" Link="Source\ImageModelDefinition.cs" />
     <Compile Include="..\MoE.ModelManager\Models\RequestMetric.cs" Link="Source\RequestMetric.cs" />
     <Compile Include="..\MoE.ModelManager\Services\IRequestTelemetryService.cs" Link="Source\IRequestTelemetryService.cs" />
     <Compile Include="..\MoE.ModelManager\Services\LlamaArgumentsBuilder.cs" Link="Source\LlamaArgumentsBuilder.cs" />
+    <Compile Include="..\MoE.ModelManager\Services\ImageRuntimeArgumentsBuilder.cs" Link="Source\ImageRuntimeArgumentsBuilder.cs" />
     <Compile Include="..\MoE.ModelManager\Services\RequestTelemetryService.cs" Link="Source\RequestTelemetryService.cs" />
   </ItemGroup>
 

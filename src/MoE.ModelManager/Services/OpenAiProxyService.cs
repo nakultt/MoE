@@ -21,6 +21,7 @@ internal sealed class OpenAiProxyService : IApiProxyService
     private readonly IAppResources _resources;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IModelRuntimeService _runtimeService;
+    private readonly IImageRuntimeService _imageRuntimeService;
     private readonly IRequestTelemetryService _telemetryService;
     private WebApplication? _application;
 
@@ -28,11 +29,13 @@ internal sealed class OpenAiProxyService : IApiProxyService
         IAppResources resources,
         IHttpClientFactory httpClientFactory,
         IModelRuntimeService runtimeService,
+        IImageRuntimeService imageRuntimeService,
         IRequestTelemetryService telemetryService)
     {
         _resources = resources;
         _httpClientFactory = httpClientFactory;
         _runtimeService = runtimeService;
+        _imageRuntimeService = imageRuntimeService;
         _telemetryService = telemetryService;
     }
 
@@ -275,7 +278,11 @@ internal sealed class OpenAiProxyService : IApiProxyService
                 generationSeconds = ReadDouble(timings, "predicted_ms") / 1000d;
             }
 
-            return new Usage(promptTokens, completionTokens, tokensPerSecond, generationSeconds);
+            int imageCount = root.TryGetProperty("data", out JsonElement data)
+                && data.ValueKind == JsonValueKind.Array
+                    ? data.GetArrayLength()
+                    : 0;
+            return new Usage(promptTokens, completionTokens, tokensPerSecond, generationSeconds, imageCount);
         }
         catch (JsonException)
         {
@@ -324,7 +331,15 @@ internal sealed class OpenAiProxyService : IApiProxyService
             await WriteJsonAsync(
                 context,
                 StatusCodes.Status200OK,
-                new { status = _runtimeService.Current.Status.ToString().ToLowerInvariant() });
+                new
+                {
+                    status = _runtimeService.Current.Status == RuntimeStatus.Ready
+                        || _imageRuntimeService.Current.Status == RuntimeStatus.Ready
+                            ? "ready"
+                            : "unloaded",
+                    text_model = _runtimeService.Current.Status.ToString().ToLowerInvariant(),
+                    image_model = _imageRuntimeService.Current.Status.ToString().ToLowerInvariant(),
+                });
             return;
         }
 
@@ -334,16 +349,26 @@ internal sealed class OpenAiProxyService : IApiProxyService
             return;
         }
 
-        if (_runtimeService.Current.Status != RuntimeStatus.Ready)
+        bool isImageRequest = path.StartsWith("/v1/images", StringComparison.OrdinalIgnoreCase);
+        bool isModelListRequest = path.Equals("/v1/models", StringComparison.OrdinalIgnoreCase);
+        bool useImageRuntime = isImageRequest
+            || (isModelListRequest
+                && _runtimeService.Current.Status != RuntimeStatus.Ready
+                && _imageRuntimeService.Current.Status == RuntimeStatus.Ready);
+        RuntimeStatus requiredStatus = useImageRuntime
+            ? _imageRuntimeService.Current.Status
+            : _runtimeService.Current.Status;
+        if (requiredStatus != RuntimeStatus.Ready)
         {
-            await WriteOpenAiErrorAsync(context, StatusCodes.Status503ServiceUnavailable, _resources.GetString("ApiNoModel"));
+            string messageKey = useImageRuntime ? "ApiNoImageModel" : "ApiNoModel";
+            await WriteOpenAiErrorAsync(context, StatusCodes.Status503ServiceUnavailable, _resources.GetString(messageKey));
             return;
         }
 
-        await ForwardAsync(context, path);
+        await ForwardAsync(context, path, useImageRuntime);
     }
 
-    private async Task ForwardAsync(HttpContext context, string path)
+    private async Task ForwardAsync(HttpContext context, string path, bool useImageRuntime)
     {
         Stopwatch stopwatch = Stopwatch.StartNew();
         byte[] requestBody = await ReadRequestBodyAsync(context.Request, context.RequestAborted);
@@ -358,7 +383,8 @@ internal sealed class OpenAiProxyService : IApiProxyService
             && clientHeader.ToString().Equals("desktop", StringComparison.OrdinalIgnoreCase)
                 ? _resources.GetString("SourceDesktop")
                 : _resources.GetString("SourceExternal");
-        Uri backendUri = new($"http://127.0.0.1:{ModelRuntimeService.BackendPort}{path}{context.Request.QueryString}");
+        int backendPort = useImageRuntime ? ImageRuntimeService.BackendPort : ModelRuntimeService.BackendPort;
+        Uri backendUri = new($"http://127.0.0.1:{backendPort}{path}{context.Request.QueryString}");
         using HttpRequestMessage backendRequest = new(new HttpMethod(context.Request.Method), backendUri);
         CopyRequestHeaders(context.Request, backendRequest);
         if (requestBody.Length > 0)
@@ -368,7 +394,7 @@ internal sealed class OpenAiProxyService : IApiProxyService
                 context.Request.ContentType ?? "application/json");
         }
 
-        HttpClient client = _httpClientFactory.CreateClient("LlamaBackend");
+        HttpClient client = _httpClientFactory.CreateClient(useImageRuntime ? "ImageBackend" : "LlamaBackend");
         using HttpResponseMessage backendResponse = await client.SendAsync(
             backendRequest,
             HttpCompletionOption.ResponseHeadersRead,
@@ -388,13 +414,32 @@ internal sealed class OpenAiProxyService : IApiProxyService
         double tokensPerSecond = usage.TokensPerSecond > 0
             ? usage.TokensPerSecond
             : usage.CompletionTokens / Math.Max(generationSeconds, 0.001d);
+        string quantitySummary = useImageRuntime
+            ? string.Format(CultureInfo.CurrentCulture, _resources.GetString("ImageMetricSummaryFormat"), usage.ImageCount)
+            : string.Format(
+                CultureInfo.CurrentCulture,
+                _resources.GetString("TokenMetricSummaryFormat"),
+                usage.CompletionTokens,
+                usage.PromptTokens);
+        string performanceSummary = useImageRuntime
+            ? string.Format(
+                CultureInfo.CurrentCulture,
+                _resources.GetString("ImagePerformanceSummaryFormat"),
+                stopwatch.Elapsed.TotalSeconds,
+                usage.ImageCount * 60d / Math.Max(stopwatch.Elapsed.TotalSeconds, 0.001d))
+            : string.Format(
+                CultureInfo.CurrentCulture,
+                _resources.GetString("TokenPerformanceSummaryFormat"),
+                tokensPerSecond,
+                stopwatch.Elapsed.TotalSeconds);
         _telemetryService.Add(new RequestMetric
         {
             Timestamp = DateTimeOffset.Now,
             Source = source,
             Endpoint = path,
             Model = string.IsNullOrWhiteSpace(requestedModel)
-                ? _runtimeService.Current.ModelId ?? _resources.GetString("UnknownModel")
+                ? (useImageRuntime ? _imageRuntimeService.Current.ModelId : _runtimeService.Current.ModelId)
+                    ?? _resources.GetString("UnknownModel")
                 : requestedModel,
             StatusCode = (int)backendResponse.StatusCode,
             PromptTokens = usage.PromptTokens,
@@ -402,6 +447,8 @@ internal sealed class OpenAiProxyService : IApiProxyService
             TokensPerSecond = tokensPerSecond,
             DurationMilliseconds = stopwatch.Elapsed.TotalMilliseconds,
             IsStreaming = isStreaming,
+            QuantitySummary = quantitySummary,
+            PerformanceSummary = performanceSummary,
         });
     }
 
@@ -409,5 +456,6 @@ internal sealed class OpenAiProxyService : IApiProxyService
         int PromptTokens = 0,
         int CompletionTokens = 0,
         double TokensPerSecond = 0,
-        double GenerationSeconds = 0);
+        double GenerationSeconds = 0,
+        int ImageCount = 0);
 }
