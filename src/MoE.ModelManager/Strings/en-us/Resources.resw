@@ -6,7 +6,7 @@
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <data name="WindowTitle.Title" xml:space="preserve"><value>MoE Model Manager</value></data>
   <data name="AppHeading.Text" xml:space="preserve"><value>Local AI control center</value></data>
-  <data name="AppSubheading.Text" xml:space="preserve"><value>Load one optimized model, chat locally, and monitor OpenAI-compatible API requests.</value></data>
+  <data name="AppSubheading.Text" xml:space="preserve"><value>Run optimized text and image models locally through one OpenAI-compatible API.</value></data>
   <data name="ModelsHeading.Text" xml:space="preserve"><value>Models</value></data>
   <data name="ModelPicker.Header" xml:space="preserve"><value>Select model</value></data>
   <data name="ModelPicker.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Model selector</value></data>
@@ -17,8 +17,31 @@
   <data name="RuntimeStatusLabel.Text" xml:space="preserve"><value>Runtime status</value></data>
   <data name="ModelPathLabel.Text" xml:space="preserve"><value>Model file</value></data>
   <data name="ApiHeading.Text" xml:space="preserve"><value>OpenAI-compatible API</value></data>
-  <data name="ApiHint.Text" xml:space="preserve"><value>Use this base URL from any local project.</value></data>
+  <data name="ApiHint.Text" xml:space="preserve"><value>Use this base URL for chat completions and image generations from any local project.</value></data>
+  <data name="ImageModelHeading.Text" xml:space="preserve"><value>Image model</value></data>
+  <data name="LoadImageModelButton.Content" xml:space="preserve"><value>Load image model</value></data>
+  <data name="LoadImageModelButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Load FLUX image model</value></data>
+  <data name="EjectImageModelButton.Content" xml:space="preserve"><value>Eject</value></data>
+  <data name="EjectImageModelButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Eject image model</value></data>
+  <data name="ImageRuntimeStatusLabel.Text" xml:space="preserve"><value>Image runtime status</value></data>
+  <data name="ImageModelPathLabel.Text" xml:space="preserve"><value>Image model file</value></data>
   <data name="ChatHeading.Text" xml:space="preserve"><value>Chat</value></data>
+  <data name="ChatTab.Header" xml:space="preserve"><value>Chat</value></data>
+  <data name="ChatTab.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Chat tab</value></data>
+  <data name="ImagesTab.Header" xml:space="preserve"><value>Images</value></data>
+  <data name="ImagesTab.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Image generation tab</value></data>
+  <data name="ImageGenerationHeading.Text" xml:space="preserve"><value>Create an image</value></data>
+  <data name="ImagePlaceholder.Text" xml:space="preserve"><value>Your generated image will appear here.</value></data>
+  <data name="GeneratedImage.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Generated image preview</value></data>
+  <data name="ImagePromptBox.Header" xml:space="preserve"><value>Image prompt</value></data>
+  <data name="ImagePromptBox.PlaceholderText" xml:space="preserve"><value>Describe the image you want to create…</value></data>
+  <data name="ImagePromptBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Image generation prompt</value></data>
+  <data name="ImageSizePicker.Header" xml:space="preserve"><value>Size</value></data>
+  <data name="ImageSizePicker.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Generated image size</value></data>
+  <data name="GenerateImageButton.Content" xml:space="preserve"><value>Generate</value></data>
+  <data name="GenerateImageButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Generate image</value></data>
+  <data name="CancelImageButton.Content" xml:space="preserve"><value>Stop</value></data>
+  <data name="CancelImageButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Stop image generation</value></data>
   <data name="ChatList.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Chat conversation</value></data>
   <data name="PromptBox.Header" xml:space="preserve"><value>Message</value></data>
   <data name="PromptBox.PlaceholderText" xml:space="preserve"><value>Ask the loaded model anything…</value></data>
@@ -42,6 +65,7 @@
   <data name="ErrorChatFailed" xml:space="preserve"><value>The chat request failed.</value></data>
   <data name="ErrorApiFailed" xml:space="preserve"><value>The local API could not start.</value></data>
   <data name="ApiNoModel" xml:space="preserve"><value>No model is loaded.</value></data>
+  <data name="ApiNoImageModel" xml:space="preserve"><value>No image model is loaded.</value></data>
   <data name="ApiInvalidRequest" xml:space="preserve"><value>The request body is invalid.</value></data>
   <data name="SourceDesktop" xml:space="preserve"><value>Desktop</value></data>
   <data name="SourceExternal" xml:space="preserve"><value>External</value></data>
@@ -52,6 +76,15 @@
   <data name="SecondsSuffix.Text" xml:space="preserve"><value> seconds</value></data>
   <data name="MetricSeparator.Text" xml:space="preserve"><value> · </value></data>
   <data name="MeasuredSpeedFormat" xml:space="preserve"><value>Measured: {0:N2} TPS</value></data>
+  <data name="TokenMetricSummaryFormat" xml:space="preserve"><value>{0} generated · {1} prompt</value></data>
+  <data name="TokenPerformanceSummaryFormat" xml:space="preserve"><value>{0:N2} TPS · {1:N2} seconds</value></data>
+  <data name="ImageMetricSummaryFormat" xml:space="preserve"><value>{0} image generated</value></data>
+  <data name="ImagePerformanceSummaryFormat" xml:space="preserve"><value>{0:N2} seconds · {1:N2} images/minute</value></data>
+  <data name="ErrorImageLoadFailed" xml:space="preserve"><value>Could not load the image model.</value></data>
+  <data name="ErrorImageGenerationFailed" xml:space="preserve"><value>Image generation failed.</value></data>
+  <data name="ImageGenerating" xml:space="preserve"><value>Generating image…</value></data>
+  <data name="ImageGenerationCanceled" xml:space="preserve"><value>Image generation stopped.</value></data>
+  <data name="ImageResultFormat" xml:space="preserve"><value>Generated in {0:N2} seconds. Saved locally.</value></data>
   <data name="ApiReady" xml:space="preserve"><value>API listening</value></data>
   <data name="ApiStopped" xml:space="preserve"><value>API stopped</value></data>
 </root>

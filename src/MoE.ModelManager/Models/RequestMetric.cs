@@ -58,6 +58,16 @@ public sealed class RequestMetric
     public bool IsStreaming { get; init; }
 
     /// <summary>
+    /// Gets the localized request quantity summary.
+    /// </summary>
+    public string QuantitySummary { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Gets the localized request performance summary.
+    /// </summary>
+    public string PerformanceSummary { get; init; } = string.Empty;
+
+    /// <summary>
     /// Gets a culture-aware timestamp for display.
     /// </summary>
     public string TimeSummary => Timestamp.ToLocalTime().ToString("T", CultureInfo.CurrentCulture);

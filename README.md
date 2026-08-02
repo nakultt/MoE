@@ -1,17 +1,19 @@
 # MoE Model Manager
 
-Native WinUI 3 desktop control center for the local Qwen3.6 35B A3B and Gemma 4 26B A4B GGUF models. It loads one optimized model at a time, provides a Markdown-capable chat UI, and exposes the loaded model through an OpenAI-compatible loopback API.
+Native WinUI 3 desktop control center for local Qwen3.6, Gemma 4, and FLUX.2 Klein models. It loads one GPU model at a time, provides Markdown chat and image generation, and exposes the active model through an OpenAI-compatible loopback API.
 
 ## What is included
 
 - Model selection, load, eject, and live runtime status.
 - Streaming local chat with native Markdown rendering for headings, lists, emphasis, links, quotes, and code.
+- FLUX.2 Klein image generation with size selection, in-app preview, automatic local saving, and cancel support.
 - OpenAI-compatible `GET`/`POST` proxy at `http://127.0.0.1:8081/v1`.
-- Request activity showing source, endpoint, prompt/generated tokens, duration, and measured TPS.
+- Request activity showing chat TPS or image generation duration for desktop and external API calls.
 - Pinned CUDA 13.3 llama.cpp runtime installer (`b10218`).
+- Pinned CUDA 12 stable-diffusion.cpp image runtime (`e31a86c`).
 - Reproducible x64 MSIX packaging script.
 
-The GGUF files are intentionally not stored in this repository. The app and llama.cpp runtime live on `E:`, while the large model files stay on `C:`.
+The GGUF and safetensors files are intentionally not stored in this repository. The app and runtimes live on `E:`, while the large model files stay on `C:`.
 
 ## Measured configurations on this machine
 
@@ -23,6 +25,17 @@ The GGUF files are intentionally not stored in this repository. The app and llam
 Gemma is one main model. Its small Q8 MTP GGUF is a speculative-decoding helper, not a second chat model. Both files are loaded together when Gemma is selected.
 
 Short replies can report lower TPS because startup/prompt overhead dominates. Longer generations are the useful performance measurement.
+
+### FLUX.2 Klein image performance
+
+The image runtime uses the distilled four-step FLUX.2 Klein 4B architecture with a Q4 diffusion transformer and Q4 Qwen3 text encoder. Both run on CUDA; the VAE also stays on the GPU. The final configuration peaks near 6.34 GB VRAM and leaves headroom on the 8 GB RTX 4060.
+
+| Image size | Confirmed warm generation time |
+| --- | ---: |
+| **512×512 (default)** | **11.42 seconds** |
+| 768×768 | 25.88 seconds |
+
+The official FP8 transformer was tested first but took several minutes at 512×512 in this C++ backend. The Q4 checkpoint produced good visual quality and was substantially faster. Only one LLM or image model is held on the GPU at a time; loading FLUX ejects Qwen/Gemma, and loading an LLM ejects FLUX.
 
 ### Qwen embedded-MTP comparison
 
@@ -77,6 +90,7 @@ Install or verify the pinned local runtime:
 ```powershell
 Set-Location E:\Github\MoE
 .\scripts\install-runtime.ps1
+.\scripts\install-image-model.ps1
 ```
 
 Build and launch:
@@ -86,7 +100,7 @@ dotnet build .\src\MoE.ModelManager\MoE.ModelManager.csproj -c Debug -p:Platform
 dotnet run --project .\src\MoE.ModelManager\MoE.ModelManager.csproj -c Debug -p:Platform=x64
 ```
 
-If a GGUF moves, edit its absolute path in [models.json](src/MoE.ModelManager/Configuration/models.json). Model-specific context, CPU MoE layers, MTP path, and measured TPS are stored in the same file.
+If an LLM GGUF moves, edit its absolute path in [models.json](src/MoE.ModelManager/Configuration/models.json). FLUX paths and its four-step configuration live in [image-model.json](src/MoE.ModelManager/Configuration/image-model.json).
 
 ## Fallback llama.cpp Web UI launchers
 
@@ -140,7 +154,26 @@ Invoke-RestMethod `
     -Body $body
 ```
 
-Available model IDs are `qwen3.6-35b-a3b` and `gemma-4-26b-a4b`. Requests from the built-in chat are labeled **Desktop**; requests from other processes are labeled **External**.
+Text model IDs are `qwen3.6-35b-a3b` and `gemma-4-26b-a4b`; the image model ID is `flux.2-klein-4b`. Requests from built-in chat/image generation are labeled **Desktop**; requests from other processes are labeled **External**.
+
+Load FLUX in the app, then generate an image through the same API:
+
+```python
+from base64 import b64decode
+from openai import OpenAI
+
+client = OpenAI(base_url="http://127.0.0.1:8081/v1", api_key="local")
+result = client.images.generate(
+    model="flux.2-klein-4b",
+    prompt="A tiny glass greenhouse on a mossy forest floor at sunrise",
+    size="512x512",
+    response_format="b64_json",
+)
+with open("flux.png", "wb") as output:
+    output.write(b64decode(result.data[0].b64_json))
+```
+
+The image endpoint is `POST /v1/images/generations`. Responses contain standard `data[].b64_json` image data and appear in the app's Request activity panel.
 
 ## Build the installer
 
@@ -151,7 +184,7 @@ Set-Location E:\Github\MoE
 
 Output:
 
-- `artifacts\MoE.ModelManager_1.0.1.0_x64.msix`
+- `artifacts\MoE.ModelManager_1.1.0.1_x64.msix`
 - `artifacts\MoE.ModelManager-devcert.cer`
 
 This is a locally signed development installer. Install it with:
@@ -169,4 +202,4 @@ dotnet build .\src\MoE.ModelManager\MoE.ModelManager.csproj -c Release -p:Platfo
 dotnet test .\src\MoE.ModelManager.Tests\MoE.ModelManager.Tests.csproj -c Debug
 ```
 
-The current Release build completes with zero warnings, and the focused test suite covers model configuration, llama.cpp arguments, invalid ports, and bounded request telemetry.
+The Release build and focused tests cover text/image model configuration, llama.cpp and stable-diffusion.cpp arguments, invalid ports, and bounded request telemetry.

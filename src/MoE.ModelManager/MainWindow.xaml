@@ -21,7 +21,7 @@
             x:Name="AppTitleBar"
             x:Uid="WindowTitle">
             <TitleBar.IconSource>
-                <ImageIconSource ImageSource="Assets/AppIcon.ico" />
+                <ImageIconSource ImageSource="Assets/Square44x44Logo.targetsize-24_altform-unplated.png" />
             </TitleBar.IconSource>
         </TitleBar>
 

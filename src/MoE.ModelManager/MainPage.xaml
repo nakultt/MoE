@@ -36,6 +36,7 @@
         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
         BorderThickness="1"
         CornerRadius="10">
+      <ScrollViewer HorizontalScrollMode="Disabled" VerticalScrollBarVisibility="Auto">
       <StackPanel Spacing="14">
         <TextBlock x:Uid="ModelsHeading" Style="{ThemeResource SubtitleTextBlockStyle}" />
         <ComboBox
@@ -107,6 +108,44 @@
         <Border
             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
             BorderThickness="0,1,0,0" />
+        <TextBlock x:Uid="ImageModelHeading" Style="{ThemeResource SubtitleTextBlockStyle}" />
+        <TextBlock FontWeight="SemiBold" Text="{x:Bind ViewModel.ImageModelName, Mode=OneWay}" TextWrapping="Wrap" />
+        <TextBlock Text="{x:Bind ViewModel.ImageModelDescription, Mode=OneWay}" TextWrapping="Wrap" />
+        <Grid ColumnSpacing="8">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <Button
+              x:Uid="LoadImageModelButton"
+              AutomationProperties.AutomationId="LoadImageModelButton"
+              AccessKey="I"
+              Command="{x:Bind ViewModel.LoadImageModelCommand}"
+              HorizontalAlignment="Stretch"
+              HorizontalContentAlignment="Center"
+              Style="{StaticResource AccentButtonStyle}" />
+          <Button
+              x:Uid="EjectImageModelButton"
+              Grid.Column="1"
+              AutomationProperties.AutomationId="EjectImageModelButton"
+              Command="{x:Bind ViewModel.EjectImageModelCommand}" />
+        </Grid>
+        <TextBlock x:Uid="ImageRuntimeStatusLabel" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        <TextBlock FontSize="16" FontWeight="SemiBold" Text="{x:Bind ViewModel.ImageRuntimeStatusText, Mode=OneWay}" />
+        <TextBlock
+            Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+            Text="{x:Bind ViewModel.ImageRuntimeDetail, Mode=OneWay}"
+            TextWrapping="Wrap" />
+        <TextBlock x:Uid="ImageModelPathLabel" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        <TextBlock
+            FontFamily="Consolas"
+            FontSize="11"
+            IsTextSelectionEnabled="True"
+            Text="{x:Bind ViewModel.ImageModelPath, Mode=OneWay}"
+            TextWrapping="Wrap" />
+        <Border
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="0,1,0,0" />
         <TextBlock x:Uid="ApiHeading" FontWeight="SemiBold" />
         <TextBlock
             Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
@@ -118,6 +157,7 @@
             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
             TextWrapping="Wrap" />
       </StackPanel>
+      </ScrollViewer>
     </Border>
 
     <Border
@@ -128,6 +168,8 @@
         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
         BorderThickness="1"
         CornerRadius="10">
+      <TabView IsAddTabButtonVisible="False" TabWidthMode="Equal">
+      <TabViewItem x:Uid="ChatTab" AutomationProperties.AutomationId="ChatTab" IsClosable="False">
       <Grid RowSpacing="12">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto" />
@@ -194,6 +236,85 @@
           </StackPanel>
         </Grid>
       </Grid>
+      </TabViewItem>
+      <TabViewItem x:Uid="ImagesTab" AutomationProperties.AutomationId="ImagesTab" IsClosable="False">
+        <Grid Padding="4,8,4,4" RowSpacing="12">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <TextBlock x:Uid="ImageGenerationHeading" Style="{ThemeResource SubtitleTextBlockStyle}" />
+          <Border
+              Grid.Row="1"
+              Background="{ThemeResource LayerFillColorDefaultBrush}"
+              CornerRadius="8">
+            <Grid>
+              <TextBlock
+                  x:Name="ImagePlaceholder"
+                  x:Uid="ImagePlaceholder"
+                  HorizontalAlignment="Center"
+                  VerticalAlignment="Center"
+                  Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+              <Image
+                  x:Name="GeneratedImage"
+                  x:Uid="GeneratedImage"
+                  AutomationProperties.AutomationId="GeneratedImagePreview"
+                  MaxHeight="590"
+                  Stretch="Uniform" />
+            </Grid>
+          </Border>
+          <StackPanel Grid.Row="2" Spacing="8">
+            <TextBox
+                x:Uid="ImagePromptBox"
+                AutomationProperties.AutomationId="ImagePromptBox"
+                AcceptsReturn="True"
+                MaxHeight="130"
+                MinHeight="72"
+                Text="{x:Bind ViewModel.ImagePrompt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                TextWrapping="Wrap" />
+            <Grid ColumnSpacing="8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <ComboBox
+                  x:Uid="ImageSizePicker"
+                  AutomationProperties.AutomationId="ImageSizePicker"
+                  ItemsSource="{x:Bind ViewModel.ImageSizes, Mode=OneTime}"
+                  SelectedItem="{x:Bind ViewModel.SelectedImageSize, Mode=TwoWay}" />
+              <Button
+                  x:Uid="GenerateImageButton"
+                  Grid.Column="1"
+                  AutomationProperties.AutomationId="GenerateImageButton"
+                  AccessKey="G"
+                  Command="{x:Bind ViewModel.GenerateImageCommand}"
+                  Style="{StaticResource AccentButtonStyle}">
+                <Button.KeyboardAccelerators>
+                  <KeyboardAccelerator Key="Enter" Modifiers="Control" />
+                </Button.KeyboardAccelerators>
+              </Button>
+              <Button
+                  x:Uid="CancelImageButton"
+                  Grid.Column="2"
+                  AutomationProperties.AutomationId="CancelImageButton"
+                  Command="{x:Bind ViewModel.CancelImageGenerationCommand}" />
+            </Grid>
+            <TextBlock
+                Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                Text="{x:Bind ViewModel.GeneratedImageSummary, Mode=OneWay}"
+                TextWrapping="Wrap" />
+            <TextBlock
+                FontFamily="Consolas"
+                FontSize="11"
+                IsTextSelectionEnabled="True"
+                Text="{x:Bind ViewModel.GeneratedImagePath, Mode=OneWay}"
+                TextWrapping="Wrap" />
+          </StackPanel>
+        </Grid>
+      </TabViewItem>
+      </TabView>
     </Border>
 
     <Border
@@ -247,20 +368,11 @@
                     </Grid>
                     <TextBlock FontFamily="Consolas" FontSize="11" Text="{x:Bind Endpoint}" />
                     <TextBlock Text="{x:Bind Model}" TextTrimming="CharacterEllipsis" />
-                    <TextBlock>
-                      <Run Text="{x:Bind CompletionTokens}" />
-                      <Run x:Uid="GeneratedTokensSuffix" />
-                      <Run x:Uid="MetricSeparator" />
-                      <Run Text="{x:Bind PromptTokens}" />
-                      <Run x:Uid="PromptTokensSuffix" />
-                    </TextBlock>
-                    <TextBlock Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">
-                      <Run Text="{x:Bind TokensPerSecondText}" />
-                      <Run x:Uid="TokensPerSecondSuffix" />
-                      <Run x:Uid="MetricSeparator" />
-                      <Run Text="{x:Bind DurationSecondsText}" />
-                      <Run x:Uid="SecondsSuffix" />
-                    </TextBlock>
+                    <TextBlock Text="{x:Bind QuantitySummary}" TextWrapping="Wrap" />
+                    <TextBlock
+                        Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                        Text="{x:Bind PerformanceSummary}"
+                        TextWrapping="Wrap" />
                   </StackPanel>
                 </Border>
               </DataTemplate>
