@@ -8,6 +8,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path (Split-Path $PSScriptRoot -Parent) 'settings.ps1')
 $server = Join-Path $LlamaRuntimeDir 'llama-server.exe'
 $model = $QwenModelPath
+$projector = $QwenVisionProjectorPath
 
 if (-not (Test-Path -LiteralPath $server)) {
     throw "llama-server.exe was not found at $server"
@@ -15,6 +16,9 @@ if (-not (Test-Path -LiteralPath $server)) {
 
 if (-not (Test-Path -LiteralPath $model)) {
     throw "The Qwen GGUF was not found at $model"
+}
+if (-not (Test-Path -LiteralPath $projector)) {
+    throw "The Qwen vision projector was not found at $projector"
 }
 
 $serverArgs = @(
@@ -33,7 +37,11 @@ $serverArgs = @(
     '--host', '127.0.0.1',
     '--port', "$Port",
     '--jinja',
-    '-rea', 'off'
+    '-rea', 'off',
+    '--mmproj', $projector,
+    '--no-mmproj-offload',
+    '--image-min-tokens', '1024',
+    '--image-max-tokens', '1024'
 )
 
 Write-Host "Starting Qwen3.6-35B-A3B at http://127.0.0.1:$Port"

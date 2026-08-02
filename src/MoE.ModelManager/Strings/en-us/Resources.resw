@@ -97,6 +97,11 @@
   <data name="PromptBox.Header" xml:space="preserve"><value>Message</value></data>
   <data name="PromptBox.PlaceholderText" xml:space="preserve"><value>Ask the loaded model anything…</value></data>
   <data name="PromptBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Chat message</value></data>
+  <data name="AttachChatImageButton.Content" xml:space="preserve"><value>Attach image</value></data>
+  <data name="AttachChatImageButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Attach an image to the chat message</value></data>
+  <data name="ChatImageAttachedLabel.Text" xml:space="preserve"><value>Image attached</value></data>
+  <data name="RemoveChatImageButton.Content" xml:space="preserve"><value>Remove</value></data>
+  <data name="RemoveChatImageButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Remove attached chat image</value></data>
   <data name="SendButton.Content" xml:space="preserve"><value>Send</value></data>
   <data name="SendButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Send chat message</value></data>
   <data name="StopButton.Content" xml:space="preserve"><value>Stop</value></data>
@@ -114,6 +119,8 @@
   <data name="AuthorAssistant" xml:space="preserve"><value>Assistant</value></data>
   <data name="ErrorLoadFailed" xml:space="preserve"><value>Could not load the selected model.</value></data>
   <data name="ErrorChatFailed" xml:space="preserve"><value>The chat request failed.</value></data>
+  <data name="ErrorChatImageFailed" xml:space="preserve"><value>The image could not be attached.</value></data>
+  <data name="ErrorModelDoesNotSupportImages" xml:space="preserve"><value>The selected model is not configured for image input.</value></data>
   <data name="ErrorApiFailed" xml:space="preserve"><value>The local API could not start.</value></data>
   <data name="ApiNoModel" xml:space="preserve"><value>No model is loaded.</value></data>
   <data name="ApiNoImageModel" xml:space="preserve"><value>No image model is loaded.</value></data>

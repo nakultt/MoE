@@ -168,6 +168,31 @@ response = client.chat.completions.create(
 print(response.choices[0].message.content)
 ```
 
+Both text models also accept images. The desktop Chat tab has **Attach image** with a preview. External clients use the standard OpenAI multimodal content array with either an HTTP image URL or a base64 data URL:
+
+```python
+import base64
+from openai import OpenAI
+
+client = OpenAI(base_url="http://127.0.0.1:8081/v1", api_key="local")
+with open("screenshot.png", "rb") as image_file:
+    image_url = "data:image/png;base64," + base64.b64encode(image_file.read()).decode()
+
+response = client.chat.completions.create(
+    model="qwen3.6-35b-a3b",
+    messages=[{
+        "role": "user",
+        "content": [
+            {"type": "text", "text": "What is shown in this image?"},
+            {"type": "image_url", "image_url": {"url": image_url}},
+        ],
+    }],
+)
+print(response.choices[0].message.content)
+```
+
+The desktop attachment limit is 20 MB and the local API accepts request bodies up to 32 MB. The vision projectors remain in system RAM to preserve the RTX 4060's 8 GB VRAM for token generation.
+
 PowerShell:
 
 ```powershell
@@ -269,7 +294,7 @@ Set-Location E:\Github\MoE
 
 Output:
 
-- `artifacts\MoE.ModelManager_1.3.0.0_x64.msix`
+- `artifacts\MoE.ModelManager_1.4.0.0_x64.msix`
 - `artifacts\MoE.ModelManager-devcert.cer`
 
 This is a locally signed development installer. Install it with:

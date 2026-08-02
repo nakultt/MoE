@@ -76,6 +76,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public event Action<GeneratedVideoResult>? VideoGenerated;
 
+    public event Action? ChatImageAttachmentCleared;
+
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(LoadModelCommand))]
     [NotifyCanExecuteChangedFor(nameof(SendMessageCommand))]
@@ -145,6 +147,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     public partial string UserPrompt { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string SelectedChatImagePath { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string SelectedChatImageName { get; set; } = string.Empty;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SendMessageCommand))]
@@ -224,6 +232,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public ObservableCollection<ChatMessage> Messages { get; } = [];
 
     public ObservableCollection<RequestMetric> RequestMetrics { get; } = [];
+
+    public bool CanAttachChatImage => SelectedModel?.HasVision == true;
 
     public IReadOnlyList<string> ImageSizes { get; } = ["512x512", "768x768", "1024x1024"];
 
@@ -305,6 +315,25 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             CultureInfo.CurrentCulture,
             _resources.GetString("MeasuredSpeedFormat"),
             SelectedModel.MeasuredTokensPerSecond);
+
+    public void AttachChatImage(string imagePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(imagePath);
+        if (!CanAttachChatImage)
+        {
+            throw new InvalidOperationException(_resources.GetString("ErrorModelDoesNotSupportImages"));
+        }
+
+        SelectedChatImagePath = imagePath;
+        SelectedChatImageName = Path.GetFileName(imagePath);
+    }
+
+    public void ClearChatImageAttachment()
+    {
+        SelectedChatImagePath = string.Empty;
+        SelectedChatImageName = string.Empty;
+        ChatImageAttachmentCleared?.Invoke();
+    }
 
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
@@ -430,11 +459,47 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
+        string? imageDataUrl = null;
+        string? imageFileName = null;
+        if (!string.IsNullOrWhiteSpace(SelectedChatImagePath))
+        {
+            if (!model.HasVision)
+            {
+                Messages.Add(new ChatMessage
+                {
+                    Role = "assistant",
+                    Author = _resources.GetString("AuthorAssistant"),
+                    Content = _resources.GetString("ErrorModelDoesNotSupportImages"),
+                });
+                return;
+            }
+
+            try
+            {
+                imageDataUrl = await ImageDataUrlFactory.CreateAsync(
+                    SelectedChatImagePath,
+                    CancellationToken.None);
+                imageFileName = SelectedChatImageName;
+            }
+            catch (Exception exception) when (exception is IOException or InvalidDataException)
+            {
+                Messages.Add(new ChatMessage
+                {
+                    Role = "assistant",
+                    Author = _resources.GetString("AuthorAssistant"),
+                    Content = $"{_resources.GetString("ErrorChatImageFailed")} {exception.Message}",
+                });
+                return;
+            }
+        }
+
         ChatMessage userMessage = new()
         {
             Role = "user",
             Author = _resources.GetString("AuthorYou"),
             Content = prompt,
+            ImageDataUrl = imageDataUrl,
+            ImageFileName = imageFileName,
         };
         Messages.Add(userMessage);
         List<ChatMessage> requestMessages = Messages.ToList();
@@ -445,6 +510,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         };
         Messages.Add(assistantMessage);
         UserPrompt = string.Empty;
+        ClearChatImageAttachment();
         IsGenerating = true;
         _generationCancellation = new CancellationTokenSource();
 
@@ -883,6 +949,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(SelectedModelPath));
         OnPropertyChanged(nameof(SelectedDescription));
         OnPropertyChanged(nameof(SelectedMeasuredSpeed));
+        OnPropertyChanged(nameof(CanAttachChatImage));
+        if (value?.HasVision != true)
+        {
+            ClearChatImageAttachment();
+        }
     }
 
     private void OnRuntimeStateChanged(RuntimeSnapshot snapshot)

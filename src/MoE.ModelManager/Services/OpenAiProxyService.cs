@@ -18,7 +18,7 @@ namespace MoE.ModelManager.Services;
 internal sealed class OpenAiProxyService : IApiProxyService
 {
     private const int PublicPort = 8081;
-    private const int MaximumRequestBytes = 8 * 1024 * 1024;
+    private const int MaximumRequestBytes = 32 * 1024 * 1024;
     private readonly IAppResources _resources;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IModelRuntimeService _runtimeService;
@@ -59,7 +59,11 @@ internal sealed class OpenAiProxyService : IApiProxyService
 
         WebApplicationBuilder builder = WebApplication.CreateSlimBuilder();
         builder.Logging.ClearProviders();
-        builder.WebHost.ConfigureKestrel(options => options.Listen(IPAddress.Loopback, PublicPort));
+        builder.WebHost.ConfigureKestrel(options =>
+        {
+            options.Limits.MaxRequestBodySize = MaximumRequestBytes;
+            options.Listen(IPAddress.Loopback, PublicPort);
+        });
         WebApplication application = builder.Build();
         application.MapMethods("/{**path}", ["GET", "POST", "DELETE", "OPTIONS"], HandleAsync);
         await application.StartAsync(cancellationToken);
