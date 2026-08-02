@@ -1,6 +1,6 @@
 param(
     [int]$Port = 8081,
-    [int]$Context = 16384
+    [int]$Context = 8192
 )
 
 $ErrorActionPreference = 'Stop'
@@ -22,10 +22,10 @@ $serverArgs = @(
     '-c', "$Context",
     '-ngl', '999',
     '-ncmoe', '30',
-    '-ctk', 'q8_0',
-    '-ctv', 'q8_0',
+    '-ctk', 'f16',
+    '-ctv', 'f16',
     '-fa', 'on',
-    '-t', '16',
+    '-t', '14',
     '-C', '0xFFFF',
     '--cpu-strict', '1',
     '--prio', '2',

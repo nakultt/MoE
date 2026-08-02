@@ -24,15 +24,15 @@ To choose another port or context size:
 & 'E:\Github\MoE\benchmarks\benchmark-qwen3.6.ps1'
 ```
 
-Measured on this machine:
+Measured on this machine after direct-decoding tuning:
 
-- `llama-bench tg128`: **37.17 +/- 1.14 tokens/second**
-- 512-token real server generation: **34.10 tokens/second**
+- 512-token real server generation: **41.18 tokens/second median**
+- Repeated samples: **37.78, 41.73, and 41.18 tokens/second**
 - GPU: RTX 4060 Laptop 8GB
 - CPU: Intel Core i7-14700HX
 - RAM: 31.7GB
 - Model: Q4_K_M, 22,285,080,192 bytes
 
-The important settings are `-ncmoe 30`, Q8 KV cache, one server slot, and CPU affinity `0xFFFF`, which keeps inference on the P-core logical processors.
+The important settings are an 8,192-token context, `-ncmoe 30`, F16 KV cache, 14 inference threads, one server slot, and CPU affinity `0xFFFF`, which keeps inference on the P-core logical processors. The first generation after loading can be slower while caches and clock speeds warm up; sustained requests exceed 40 TPS.
 
 Reasoning/thinking is disabled by default with `-rea off`, so chat responses go directly to the final answer without producing reasoning tokens.

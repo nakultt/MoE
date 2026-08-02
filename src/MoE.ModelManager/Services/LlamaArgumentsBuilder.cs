@@ -15,6 +15,7 @@ internal static class LlamaArgumentsBuilder
 
         string context = model.ContextSize.ToString(CultureInfo.InvariantCulture);
         string cpuMoeLayers = model.CpuMoeLayers.ToString(CultureInfo.InvariantCulture);
+        string threads = model.Threads.ToString(CultureInfo.InvariantCulture);
         string port = backendPort.ToString(CultureInfo.InvariantCulture);
         List<string> arguments =
         [
@@ -22,10 +23,10 @@ internal static class LlamaArgumentsBuilder
             "-c", context,
             "-ngl", "999",
             "-ncmoe", cpuMoeLayers,
-            "-ctk", "q8_0",
-            "-ctv", "q8_0",
+            "-ctk", model.CacheType,
+            "-ctv", model.CacheType,
             "-fa", "on",
-            "-t", "16",
+            "-t", threads,
             "-C", "0xFFFF",
             "--cpu-strict", "1",
             "--prio", "2",

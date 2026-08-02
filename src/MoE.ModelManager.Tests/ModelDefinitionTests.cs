@@ -20,6 +20,8 @@ public sealed class ModelDefinitionTests
             ModelPath = "model.gguf",
             ContextSize = 8192,
             CpuMoeLayers = 20,
+            CacheType = "q8_0",
+            Threads = 16,
             DraftModelPath = path,
             DraftTokens = draftTokens,
             MeasuredTokensPerSecond = 50.65,

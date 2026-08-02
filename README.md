@@ -17,7 +17,7 @@ The GGUF files are intentionally not stored in this repository. The app and llam
 
 | Model | Context | CPU MoE layers | Speculative decoding | Sustained result |
 | --- | ---: | ---: | --- | ---: |
-| Qwen3.6 35B A3B Q4_K_M | 16,384 | 30 | Off | 34.10 TPS |
+| Qwen3.6 35B A3B Q4_K_M | 8,192 | 30 | Off | 41.18 TPS |
 | Gemma 4 26B A4B QAT UD-Q4_K_XL | 8,192 | 20 | Q8 MTP, draft length 2 | 51.51 TPS |
 
 Gemma is one main model. Its small Q8 MTP GGUF is a speculative-decoding helper, not a second chat model. Both files are loaded together when Gemma is selected.
@@ -38,7 +38,16 @@ The end-to-end comparison used a 16,384-token context, 30 CPU MoE layers, a dete
 | 3 | 10.71 TPS |
 | 4 | 9.95 TPS |
 
-Re-run the comparison with `benchmarks\benchmark-qwen3.6-config.ps1 -DraftTokens <0-8>`. Draft length `0` is the verified winner and matches the default app and launcher configuration.
+That MTP comparison used the original 16K context, Q8 KV cache, and 16-thread configuration. Direct-decoding tuning subsequently raised Qwen to 41.18 TPS with an 8K context, F16 KV cache, 14 P-core threads, 30 CPU MoE layers, and MTP disabled. Re-run a configuration with `benchmarks\benchmark-qwen3.6-config.ps1`; draft length `0` remains the verified winner.
+
+| Qwen direct-decoding configuration | Median generation speed |
+| --- | ---: |
+| 16K, Q8 KV, 16 threads | 27.40 TPS |
+| 8K, Q8 KV, 16 threads | 35.78 TPS |
+| 8K, Q4 KV, 14 threads | 36.92 TPS |
+| **8K, F16 KV, 14 threads** | **41.18 TPS** |
+
+The winning Balanced-power samples were 37.78, 41.73, and 41.18 TPS. The first generation after loading is colder; sustained requests exceed 40 TPS. Ultimate Performance produced a similar 40.01 TPS median, so the app does not change the Windows power plan.
 
 ### Gemma MTP and CPU-offload comparison
 
@@ -142,7 +151,7 @@ Set-Location E:\Github\MoE
 
 Output:
 
-- `artifacts\MoE.ModelManager_1.0.0.0_x64.msix`
+- `artifacts\MoE.ModelManager_1.0.1.0_x64.msix`
 - `artifacts\MoE.ModelManager-devcert.cer`
 
 This is a locally signed development installer. Install it with:

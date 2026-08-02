@@ -20,6 +20,21 @@ public sealed class LlamaArgumentsBuilderTests
     }
 
     [TestMethod]
+    public void BuildUsesModelSpecificCacheAndThreadSettings()
+    {
+        ModelDefinition model = CreateModel(draftModelPath: null, draftTokens: 0);
+
+        IReadOnlyList<string> arguments = LlamaArgumentsBuilder.Build(model, 8092);
+
+        int cacheKeyIndex = arguments.ToList().IndexOf("-ctk");
+        int cacheValueIndex = arguments.ToList().IndexOf("-ctv");
+        int threadsIndex = arguments.ToList().IndexOf("-t");
+        Assert.AreEqual("f16", arguments[cacheKeyIndex + 1]);
+        Assert.AreEqual("f16", arguments[cacheValueIndex + 1]);
+        Assert.AreEqual("14", arguments[threadsIndex + 1]);
+    }
+
+    [TestMethod]
     public void BuildOmitsMtpArgumentsWithoutDraftModel()
     {
         ModelDefinition model = CreateModel(draftModelPath: null, draftTokens: 0);
@@ -52,6 +67,8 @@ public sealed class LlamaArgumentsBuilderTests
             ModelPath = @"C:\Models\model.gguf",
             ContextSize = 8192,
             CpuMoeLayers = 20,
+            CacheType = "f16",
+            Threads = 14,
             DraftModelPath = draftModelPath,
             DraftTokens = draftTokens,
             MeasuredTokensPerSecond = 50.65,

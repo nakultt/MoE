@@ -36,6 +36,16 @@ public sealed class ModelDefinition
     public int CpuMoeLayers { get; init; }
 
     /// <summary>
+    /// Gets the KV cache quantization type passed to llama.cpp.
+    /// </summary>
+    public required string CacheType { get; init; }
+
+    /// <summary>
+    /// Gets the number of CPU inference threads.
+    /// </summary>
+    public int Threads { get; init; }
+
+    /// <summary>
     /// Gets the optional MTP draft model path.
     /// </summary>
     public string? DraftModelPath { get; init; }

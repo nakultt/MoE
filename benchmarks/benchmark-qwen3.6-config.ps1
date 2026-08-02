@@ -2,8 +2,20 @@ param(
     [ValidateRange(0, 8)]
     [int]$DraftTokens = 0,
 
+    [ValidateRange(0, 40)]
+    [int]$CpuMoeLayers = 30,
+
     [ValidateRange(2048, 32768)]
     [int]$Context = 16384,
+
+    [ValidateSet('f16', 'q8_0', 'q4_0')]
+    [string]$CacheType = 'q8_0',
+
+    [ValidateRange(1, 28)]
+    [int]$Threads = 16,
+
+    [ValidatePattern('^0x[0-9A-Fa-f]+$')]
+    [string]$CpuMask = '0xFFFF',
 
     [ValidateRange(128, 2048)]
     [int]$GenerateTokens = 512,
@@ -12,7 +24,9 @@ param(
     [int]$Runs = 3,
 
     [ValidateRange(1024, 65535)]
-    [int]$Port = 8094
+    [int]$Port = 8094,
+
+    [switch]$UltimatePerformance
 )
 
 $ErrorActionPreference = 'Stop'
@@ -31,19 +45,19 @@ if (-not (Test-Path -LiteralPath $model)) {
     throw "The Qwen GGUF was not found at $model"
 }
 
-$tag = "qwen3.6-mtp-$DraftTokens"
+$tag = "qwen3.6-c$Context-ncmoe-$CpuMoeLayers-cache-$CacheType-t$Threads-mtp-$DraftTokens"
 $stdoutLog = Join-Path $logDir "$tag.out.log"
 $stderrLog = Join-Path $logDir "$tag.err.log"
 $serverArgs = @(
     '-m', $model,
     '-c', "$Context",
     '-ngl', '999',
-    '-ncmoe', '30',
-    '-ctk', 'q8_0',
-    '-ctv', 'q8_0',
+    '-ncmoe', "$CpuMoeLayers",
+    '-ctk', $CacheType,
+    '-ctv', $CacheType,
     '-fa', 'on',
-    '-t', '16',
-    '-C', '0xFFFF',
+    '-t', "$Threads",
+    '-C', $CpuMask,
     '--cpu-strict', '1',
     '--prio', '2',
     '-np', '1',
@@ -61,7 +75,18 @@ if ($DraftTokens -gt 0) {
 }
 
 $process = $null
+$originalPowerGuid = $null
 try {
+    if ($UltimatePerformance) {
+        $activeScheme = powercfg /getactivescheme
+        $guidMatch = [regex]::Match(($activeScheme -join ' '), '[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}')
+        if (-not $guidMatch.Success) {
+            throw 'Could not determine the active Windows power plan.'
+        }
+        $originalPowerGuid = $guidMatch.Value
+        powercfg /setactive '3a4bbc86-cef3-4dba-b43d-5f015ae0ebc0' | Out-Null
+    }
+
     $process = Start-Process -FilePath $server -ArgumentList $serverArgs -PassThru -WindowStyle Hidden -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog
 
     $ready = $false
@@ -110,7 +135,11 @@ try {
 
     [pscustomobject]@{
         mtp_draft_tokens = $DraftTokens
+        cpu_moe_layers = $CpuMoeLayers
         context = $Context
+        cache_type = $CacheType
+        threads = $Threads
+        cpu_mask = $CpuMask
         generated_tokens_per_run = $GenerateTokens
         runs = $Runs
         samples_tps = @($samples | ForEach-Object { [math]::Round($_, 2) })
@@ -124,5 +153,8 @@ try {
     if ($null -ne $process -and -not $process.HasExited) {
         Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
         $process.WaitForExit()
+    }
+    if ($null -ne $originalPowerGuid) {
+        powercfg /setactive $originalPowerGuid | Out-Null
     }
 }
