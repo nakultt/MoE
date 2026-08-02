@@ -275,15 +275,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public string ImageModelPath => ImageModel?.DiffusionModelPath ?? string.Empty;
 
-    public string SpeechToTextModelName => "NVIDIA Parakeet TDT 0.6B v3";
+    public string SpeechToTextModelName => AudioModel is null ? string.Empty : "NVIDIA Parakeet TDT 0.6B v3";
 
-    public string SpeechToTextModelDescription => "Fast multilingual transcription with punctuation and timestamps.";
+    public string SpeechToTextModelDescription => AudioModel is null
+        ? string.Empty
+        : "Fast multilingual transcription with punctuation and timestamps.";
 
     public string SpeechToTextModelPath => AudioModel?.ParakeetModelPath ?? string.Empty;
 
-    public string TextToSpeechModelName => "Kokoro 82M";
+    public string TextToSpeechModelName => AudioModel is null ? string.Empty : "Kokoro 82M";
 
-    public string TextToSpeechModelDescription => "Natural local speech generation with selectable voices and speed.";
+    public string TextToSpeechModelDescription => AudioModel is null
+        ? string.Empty
+        : "Natural local speech generation with selectable voices and speed.";
 
     public string TextToSpeechModelPath => AudioModel?.KokoroModelPath ?? string.Empty;
 
@@ -891,9 +895,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         RunOnUiThread(() => ApplyImageRuntimeSnapshot(snapshot));
     }
 
-    private void OnAudioRuntimeStateChanged(RuntimeSnapshot snapshot)
+    private void OnSpeechToTextStateChanged(RuntimeSnapshot snapshot)
     {
-        RunOnUiThread(() => ApplyAudioRuntimeSnapshot(snapshot));
+        RunOnUiThread(() => ApplySpeechToTextSnapshot(snapshot));
+    }
+
+    private void OnTextToSpeechStateChanged(RuntimeSnapshot snapshot)
+    {
+        RunOnUiThread(() => ApplyTextToSpeechSnapshot(snapshot));
     }
 
     private void OnVideoRuntimeStateChanged(RuntimeSnapshot snapshot)
@@ -929,16 +938,27 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         LoadVideoModelCommand.NotifyCanExecuteChanged();
     }
 
-    private void ApplyAudioRuntimeSnapshot(RuntimeSnapshot snapshot)
+    private void ApplySpeechToTextSnapshot(RuntimeSnapshot snapshot)
     {
-        AudioRuntimeStatus = snapshot.Status;
-        AudioRuntimeStatusText = _resources.GetString($"Status{snapshot.Status}");
+        SpeechToTextRuntimeStatus = snapshot.Status;
+        SpeechToTextRuntimeStatusText = _resources.GetString($"Status{snapshot.Status}");
         if (!string.IsNullOrWhiteSpace(snapshot.Detail))
         {
-            AudioRuntimeDetail = snapshot.Detail;
+            SpeechToTextRuntimeDetail = snapshot.Detail;
         }
 
         TranscribeAudioCommand.NotifyCanExecuteChanged();
+    }
+
+    private void ApplyTextToSpeechSnapshot(RuntimeSnapshot snapshot)
+    {
+        TextToSpeechRuntimeStatus = snapshot.Status;
+        TextToSpeechRuntimeStatusText = _resources.GetString($"Status{snapshot.Status}");
+        if (!string.IsNullOrWhiteSpace(snapshot.Detail))
+        {
+            TextToSpeechRuntimeDetail = snapshot.Detail;
+        }
+
         SynthesizeSpeechCommand.NotifyCanExecuteChanged();
     }
 

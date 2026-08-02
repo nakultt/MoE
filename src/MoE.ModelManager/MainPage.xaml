@@ -184,40 +184,78 @@
         <Border
             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
             BorderThickness="0,1,0,0" />
-        <TextBlock x:Uid="AudioModelHeading" Style="{ThemeResource SubtitleTextBlockStyle}" />
-        <TextBlock FontWeight="SemiBold" Text="{x:Bind ViewModel.AudioModelName, Mode=OneWay}" TextWrapping="Wrap" />
-        <TextBlock Text="{x:Bind ViewModel.AudioModelDescription, Mode=OneWay}" TextWrapping="Wrap" />
+        <TextBlock x:Uid="SpeechToTextModelHeading" Style="{ThemeResource SubtitleTextBlockStyle}" />
+        <TextBlock FontWeight="SemiBold" Text="{x:Bind ViewModel.SpeechToTextModelName, Mode=OneWay}" TextWrapping="Wrap" />
+        <TextBlock Text="{x:Bind ViewModel.SpeechToTextModelDescription, Mode=OneWay}" TextWrapping="Wrap" />
         <Grid ColumnSpacing="8">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
           <Button
-              x:Uid="LoadAudioModelButton"
-              AutomationProperties.AutomationId="LoadAudioModelButton"
+              x:Uid="LoadSpeechToTextModelButton"
+              AutomationProperties.AutomationId="LoadSpeechToTextModelButton"
               AccessKey="A"
-              Command="{x:Bind ViewModel.LoadAudioModelCommand}"
+              Command="{x:Bind ViewModel.LoadSpeechToTextModelCommand}"
               HorizontalAlignment="Stretch"
               HorizontalContentAlignment="Center"
               Style="{StaticResource AccentButtonStyle}" />
           <Button
-              x:Uid="EjectAudioModelButton"
+              x:Uid="EjectSpeechToTextModelButton"
               Grid.Column="1"
-              AutomationProperties.AutomationId="EjectAudioModelButton"
-              Command="{x:Bind ViewModel.EjectAudioModelCommand}" />
+              AutomationProperties.AutomationId="EjectSpeechToTextModelButton"
+              Command="{x:Bind ViewModel.EjectSpeechToTextModelCommand}" />
         </Grid>
-        <TextBlock x:Uid="AudioRuntimeStatusLabel" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-        <TextBlock FontSize="16" FontWeight="SemiBold" Text="{x:Bind ViewModel.AudioRuntimeStatusText, Mode=OneWay}" />
+        <TextBlock x:Uid="SpeechToTextRuntimeStatusLabel" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        <TextBlock FontSize="16" FontWeight="SemiBold" Text="{x:Bind ViewModel.SpeechToTextRuntimeStatusText, Mode=OneWay}" />
         <TextBlock
             Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-            Text="{x:Bind ViewModel.AudioRuntimeDetail, Mode=OneWay}"
+            Text="{x:Bind ViewModel.SpeechToTextRuntimeDetail, Mode=OneWay}"
             TextWrapping="Wrap" />
-        <TextBlock x:Uid="AudioModelPathLabel" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        <TextBlock x:Uid="SpeechToTextModelPathLabel" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
         <TextBlock
             FontFamily="Consolas"
             FontSize="11"
             IsTextSelectionEnabled="True"
-            Text="{x:Bind ViewModel.AudioModelPath, Mode=OneWay}"
+            Text="{x:Bind ViewModel.SpeechToTextModelPath, Mode=OneWay}"
+            TextWrapping="Wrap" />
+        <Border
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="0,1,0,0" />
+        <TextBlock x:Uid="TextToSpeechModelHeading" Style="{ThemeResource SubtitleTextBlockStyle}" />
+        <TextBlock FontWeight="SemiBold" Text="{x:Bind ViewModel.TextToSpeechModelName, Mode=OneWay}" TextWrapping="Wrap" />
+        <TextBlock Text="{x:Bind ViewModel.TextToSpeechModelDescription, Mode=OneWay}" TextWrapping="Wrap" />
+        <Grid ColumnSpacing="8">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <Button
+              x:Uid="LoadTextToSpeechModelButton"
+              AutomationProperties.AutomationId="LoadTextToSpeechModelButton"
+              AccessKey="T"
+              Command="{x:Bind ViewModel.LoadTextToSpeechModelCommand}"
+              HorizontalAlignment="Stretch"
+              HorizontalContentAlignment="Center"
+              Style="{StaticResource AccentButtonStyle}" />
+          <Button
+              x:Uid="EjectTextToSpeechModelButton"
+              Grid.Column="1"
+              AutomationProperties.AutomationId="EjectTextToSpeechModelButton"
+              Command="{x:Bind ViewModel.EjectTextToSpeechModelCommand}" />
+        </Grid>
+        <TextBlock x:Uid="TextToSpeechRuntimeStatusLabel" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        <TextBlock FontSize="16" FontWeight="SemiBold" Text="{x:Bind ViewModel.TextToSpeechRuntimeStatusText, Mode=OneWay}" />
+        <TextBlock
+            Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+            Text="{x:Bind ViewModel.TextToSpeechRuntimeDetail, Mode=OneWay}"
+            TextWrapping="Wrap" />
+        <TextBlock x:Uid="TextToSpeechModelPathLabel" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        <TextBlock
+            FontFamily="Consolas"
+            FontSize="11"
+            IsTextSelectionEnabled="True"
+            Text="{x:Bind ViewModel.TextToSpeechModelPath, Mode=OneWay}"
             TextWrapping="Wrap" />
         <Border
             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"

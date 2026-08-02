@@ -367,13 +367,15 @@ internal sealed class OpenAiProxyService : IApiProxyService
                 {
                     status = _runtimeService.Current.Status == RuntimeStatus.Ready
                         || _imageRuntimeService.Current.Status == RuntimeStatus.Ready
-                        || _audioRuntimeService.Current.Status == RuntimeStatus.Ready
+                        || _audioRuntimeService.SpeechToTextCurrent.Status == RuntimeStatus.Ready
+                        || _audioRuntimeService.TextToSpeechCurrent.Status == RuntimeStatus.Ready
                         || _videoRuntimeService.Current.Status == RuntimeStatus.Ready
                             ? "ready"
                             : "unloaded",
                     text_model = _runtimeService.Current.Status.ToString().ToLowerInvariant(),
                     image_model = _imageRuntimeService.Current.Status.ToString().ToLowerInvariant(),
-                    audio_models = _audioRuntimeService.Current.Status.ToString().ToLowerInvariant(),
+                    speech_to_text = _audioRuntimeService.SpeechToTextCurrent.Status.ToString().ToLowerInvariant(),
+                    text_to_speech = _audioRuntimeService.TextToSpeechCurrent.Status.ToString().ToLowerInvariant(),
                     video_model = _videoRuntimeService.Current.Status.ToString().ToLowerInvariant(),
                 });
             return;
@@ -387,30 +389,37 @@ internal sealed class OpenAiProxyService : IApiProxyService
 
         if (path.StartsWith("/v1/audio", StringComparison.OrdinalIgnoreCase))
         {
-            if (_audioRuntimeService.Current.Status != RuntimeStatus.Ready)
+            bool isSpeechRequest = path.Equals("/v1/audio/speech", StringComparison.OrdinalIgnoreCase)
+                && HttpMethods.IsPost(context.Request.Method);
+            bool isTranscriptionRequest = path.Equals(
+                "/v1/audio/transcriptions",
+                StringComparison.OrdinalIgnoreCase)
+                && HttpMethods.IsPost(context.Request.Method);
+            if (!isSpeechRequest && !isTranscriptionRequest)
             {
-                await WriteOpenAiErrorAsync(
-                    context,
-                    StatusCodes.Status503ServiceUnavailable,
-                    _resources.GetString("ApiNoAudioModel"));
+                context.Response.StatusCode = StatusCodes.Status404NotFound;
                 return;
             }
 
-            if (path.Equals("/v1/audio/speech", StringComparison.OrdinalIgnoreCase)
-                && HttpMethods.IsPost(context.Request.Method))
+            RuntimeStatus audioStatus = isSpeechRequest
+                ? _audioRuntimeService.TextToSpeechCurrent.Status
+                : _audioRuntimeService.SpeechToTextCurrent.Status;
+            if (audioStatus != RuntimeStatus.Ready)
+            {
+                string message = isSpeechRequest
+                    ? _resources.GetString("ApiNoTextToSpeechModel")
+                    : _resources.GetString("ApiNoSpeechToTextModel");
+                await WriteOpenAiErrorAsync(context, StatusCodes.Status503ServiceUnavailable, message);
+                return;
+            }
+
+            if (isSpeechRequest)
             {
                 await HandleSpeechAsync(context);
                 return;
             }
 
-            if (path.Equals("/v1/audio/transcriptions", StringComparison.OrdinalIgnoreCase)
-                && HttpMethods.IsPost(context.Request.Method))
-            {
-                await HandleTranscriptionAsync(context);
-                return;
-            }
-
-            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            await HandleTranscriptionAsync(context);
             return;
         }
 

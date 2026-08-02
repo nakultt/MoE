@@ -21,7 +21,7 @@ The GGUF and safetensors files are intentionally not stored in this repository. 
 
 ### Local speech configuration
 
-The Audio tab loads both CPU models together. Parakeet handles multilingual transcription and token timestamps; Kokoro provides the configured American and British English voices. Because both run through native ONNX in the WinUI process, they use no meaningful GPU memory and can remain loaded while a text, image, or video model uses the RTX 4060.
+The Audio tab exposes Parakeet and Kokoro as independent CPU runtimes, each with its own load and eject controls. Parakeet handles multilingual transcription and token timestamps; Kokoro provides the configured American and British English voices. Load only the capability you need, or keep both loaded. Because they run through native ONNX in the WinUI process, they use no meaningful GPU memory and can remain loaded while a text, image, or video model uses the RTX 4060.
 
 The verified smoke test generated 3.59 second
 s of Kokoro speech and Parakeet transcribed the result exactly in 0.29 seconds. Run `scripts\setup-audio-models.ps1` once to download the approximately 800 MB compressed model archives; extracted models remain outside the repository.
@@ -182,7 +182,7 @@ Invoke-RestMethod `
 
 Text model IDs are `qwen3.6-35b-a3b` and `gemma-4-26b-a4b`; the image model ID is `flux.2-klein-4b`; the video model ID is `fastwan2.2-ti2v-5b`. Audio endpoints accept `kokoro-82m` and `parakeet-tdt-0.6b-v3`. Requests from the built-in UI are labeled **Desktop**; requests from other processes are labeled **External**.
 
-Load the speech models in the app, then use the OpenAI-compatible speech endpoints. The first version intentionally uses WAV for both input and output:
+Load the relevant STT or TTS model in the app, then use its OpenAI-compatible speech endpoint. The first version intentionally uses WAV for both input and output:
 
 ```powershell
 $speech = @{

@@ -32,13 +32,20 @@
   <data name="EjectVideoModelButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Eject video model</value></data>
   <data name="VideoRuntimeStatusLabel.Text" xml:space="preserve"><value>Video runtime status</value></data>
   <data name="VideoModelPathLabel.Text" xml:space="preserve"><value>Video model directory</value></data>
-  <data name="AudioModelHeading.Text" xml:space="preserve"><value>Speech models</value></data>
-  <data name="LoadAudioModelButton.Content" xml:space="preserve"><value>Load speech models</value></data>
-  <data name="LoadAudioModelButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Load Parakeet and Kokoro models</value></data>
-  <data name="EjectAudioModelButton.Content" xml:space="preserve"><value>Eject</value></data>
-  <data name="EjectAudioModelButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Eject speech models</value></data>
-  <data name="AudioRuntimeStatusLabel.Text" xml:space="preserve"><value>Speech runtime status</value></data>
-  <data name="AudioModelPathLabel.Text" xml:space="preserve"><value>Speech model directories</value></data>
+  <data name="SpeechToTextModelHeading.Text" xml:space="preserve"><value>Speech to text</value></data>
+  <data name="LoadSpeechToTextModelButton.Content" xml:space="preserve"><value>Load STT model</value></data>
+  <data name="LoadSpeechToTextModelButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Load Parakeet speech-to-text model</value></data>
+  <data name="EjectSpeechToTextModelButton.Content" xml:space="preserve"><value>Eject</value></data>
+  <data name="EjectSpeechToTextModelButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Eject Parakeet speech-to-text model</value></data>
+  <data name="SpeechToTextRuntimeStatusLabel.Text" xml:space="preserve"><value>STT runtime status</value></data>
+  <data name="SpeechToTextModelPathLabel.Text" xml:space="preserve"><value>STT model directory</value></data>
+  <data name="TextToSpeechModelHeading.Text" xml:space="preserve"><value>Text to speech</value></data>
+  <data name="LoadTextToSpeechModelButton.Content" xml:space="preserve"><value>Load TTS model</value></data>
+  <data name="LoadTextToSpeechModelButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Load Kokoro text-to-speech model</value></data>
+  <data name="EjectTextToSpeechModelButton.Content" xml:space="preserve"><value>Eject</value></data>
+  <data name="EjectTextToSpeechModelButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Eject Kokoro text-to-speech model</value></data>
+  <data name="TextToSpeechRuntimeStatusLabel.Text" xml:space="preserve"><value>TTS runtime status</value></data>
+  <data name="TextToSpeechModelPathLabel.Text" xml:space="preserve"><value>TTS model directory</value></data>
   <data name="ChatHeading.Text" xml:space="preserve"><value>Chat</value></data>
   <data name="ChatTab.Header" xml:space="preserve"><value>Chat</value></data>
   <data name="ChatTab.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Chat tab</value></data>
@@ -111,7 +118,8 @@
   <data name="ApiNoModel" xml:space="preserve"><value>No model is loaded.</value></data>
   <data name="ApiNoImageModel" xml:space="preserve"><value>No image model is loaded.</value></data>
   <data name="ApiNoVideoModel" xml:space="preserve"><value>No video model is loaded.</value></data>
-  <data name="ApiNoAudioModel" xml:space="preserve"><value>The speech models are not loaded.</value></data>
+  <data name="ApiNoSpeechToTextModel" xml:space="preserve"><value>The speech-to-text model is not loaded.</value></data>
+  <data name="ApiNoTextToSpeechModel" xml:space="preserve"><value>The text-to-speech model is not loaded.</value></data>
   <data name="ApiInvalidRequest" xml:space="preserve"><value>The request body is invalid.</value></data>
   <data name="SourceDesktop" xml:space="preserve"><value>Desktop</value></data>
   <data name="SourceExternal" xml:space="preserve"><value>External</value></data>
@@ -143,7 +151,8 @@
   <data name="VideoGenerating" xml:space="preserve"><value>Generating video… This can take several minutes.</value></data>
   <data name="VideoGenerationCanceled" xml:space="preserve"><value>Video generation stopped and the runtime was ejected.</value></data>
   <data name="VideoResultFormat" xml:space="preserve"><value>Generated in {0:N2} seconds. Saved locally.</value></data>
-  <data name="ErrorAudioLoadFailed" xml:space="preserve"><value>Could not load the speech models.</value></data>
+  <data name="ErrorSpeechToTextLoadFailed" xml:space="preserve"><value>Could not load the speech-to-text model.</value></data>
+  <data name="ErrorTextToSpeechLoadFailed" xml:space="preserve"><value>Could not load the text-to-speech model.</value></data>
   <data name="ErrorTranscriptionFailed" xml:space="preserve"><value>Transcription failed.</value></data>
   <data name="ErrorSpeechGenerationFailed" xml:space="preserve"><value>Speech generation failed.</value></data>
   <data name="AudioTranscribing" xml:space="preserve"><value>Transcribing audio…</value></data>

@@ -37,7 +37,8 @@ public partial class App : Application
         await proxy.StopAsync(CancellationToken.None);
         await runtime.EjectAsync(CancellationToken.None);
         await imageRuntime.EjectAsync(CancellationToken.None);
-        await audioRuntime.EjectAsync(CancellationToken.None);
+        await audioRuntime.EjectSpeechToTextAsync(CancellationToken.None);
+        await audioRuntime.EjectTextToSpeechAsync(CancellationToken.None);
         await videoRuntime.EjectAsync(CancellationToken.None);
     }
 
