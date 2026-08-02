@@ -24,6 +24,22 @@ Gemma is one main model. Its small Q8 MTP GGUF is a speculative-decoding helper,
 
 Short replies can report lower TPS because startup/prompt overhead dominates. Longer generations are the useful performance measurement.
 
+### Qwen embedded-MTP comparison
+
+Qwen's main GGUF contains an embedded MTP head, so it does not need a separate draft GGUF. On this 8 GB RTX 4060 configuration, however, embedded MTP is slower because drafting repeats CPU-offloaded expert work. The app and fallback launcher therefore keep MTP disabled for Qwen.
+
+The end-to-end comparison used a 16,384-token context, 30 CPU MoE layers, a deterministic long-form prompt, and three 512-token generations per configuration:
+
+| Qwen MTP draft length | Median generation speed |
+| ---: | ---: |
+| Off | 27.40 TPS |
+| 1 | 9.48 TPS |
+| 2 | 10.57 TPS |
+| 3 | 10.71 TPS |
+| 4 | 9.95 TPS |
+
+Re-run the comparison with `benchmarks\benchmark-qwen3.6-config.ps1 -DraftTokens <0-8>`. Draft length `0` is the verified winner and matches the default app and launcher configuration.
+
 ## Run from source
 
 Requirements:
