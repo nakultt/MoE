@@ -1404,7 +1404,13 @@ Both default to `http://127.0.0.1:8081`. Close the MoE Model Manager or choose a
 
 ## Use the OpenAI-compatible API
 
-Load a model in the app first. The API listens only on loopback and does not require an API key.
+Load a model in the app first. By default the API listens only on loopback and does not require an API key.
+
+### Allow devices on your LAN
+
+In **OpenAI-compatible API** on the app's left panel, switch on **Allow requests from devices on this network**, then select **Apply network setting**. The app shows the LAN base URL, for example `http://192.168.1.25:8081/v1`. Run `scripts\enable-network-api-firewall.ps1` once to allow TCP port 8081 through the Windows **Private** network firewall profile.
+
+LAN mode intentionally has no authentication, as requested. Only enable it on a trusted private network. It does not expose the service to the public internet unless you separately configure router port forwarding.
 
 Python with the OpenAI client:
 

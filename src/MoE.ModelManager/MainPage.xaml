@@ -270,6 +270,22 @@
             x:Uid="ApiHint"
             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
             TextWrapping="Wrap" />
+        <ToggleSwitch
+            Header="Allow requests from devices on this network"
+            IsOn="{x:Bind ViewModel.IsNetworkAccessEnabled, Mode=TwoWay}"
+            OffContent="Off"
+            OnContent="On" />
+        <Button
+            Command="{x:Bind ViewModel.SetNetworkAccessCommand}"
+            Content="Apply network setting"
+            HorizontalAlignment="Stretch" />
+        <TextBlock
+            FontWeight="SemiBold"
+            Text="{x:Bind ViewModel.NetworkApiBaseUrl, Mode=OneWay}" />
+        <TextBlock
+            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+            Text="{x:Bind ViewModel.NetworkApiStatusText, Mode=OneWay}"
+            TextWrapping="Wrap" />
       </StackPanel>
       </ScrollViewer>
     </Border>

@@ -146,6 +146,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial string ApiStatusText { get; set; } = string.Empty;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SetNetworkAccessCommand))]
+    public partial bool IsNetworkAccessEnabled { get; set; }
+
+    [ObservableProperty]
+    public partial string NetworkApiStatusText { get; set; } = string.Empty;
+
+    [ObservableProperty]
     public partial string UserPrompt { get; set; } = string.Empty;
 
     [ObservableProperty]
@@ -273,6 +280,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public string ApiBaseUrl => _apiProxyService.BaseUrl;
 
+    public string NetworkApiBaseUrl => _apiProxyService.NetworkBaseUrl;
+
     public bool HasNoMetrics => RequestMetrics.Count == 0;
 
     public string SelectedModelPath => SelectedModel?.ModelPath ?? string.Empty;
@@ -315,6 +324,24 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             CultureInfo.CurrentCulture,
             _resources.GetString("MeasuredSpeedFormat"),
             SelectedModel.MeasuredTokensPerSecond);
+
+    public void Dispose()
+    {
+        _generationCancellation?.Cancel();
+        _generationCancellation?.Dispose();
+        _imageGenerationCancellation?.Cancel();
+        _imageGenerationCancellation?.Dispose();
+        _audioOperationCancellation?.Cancel();
+        _audioOperationCancellation?.Dispose();
+        _videoGenerationCancellation?.Cancel();
+        _videoGenerationCancellation?.Dispose();
+        _runtimeService.StateChanged -= OnRuntimeStateChanged;
+        _imageRuntimeService.StateChanged -= OnImageRuntimeStateChanged;
+        _audioRuntimeService.SpeechToTextStateChanged -= OnSpeechToTextStateChanged;
+        _audioRuntimeService.TextToSpeechStateChanged -= OnTextToSpeechStateChanged;
+        _videoRuntimeService.StateChanged -= OnVideoRuntimeStateChanged;
+        _telemetryService.MetricAdded -= OnMetricAdded;
+    }
 
     public void AttachChatImage(string imagePath)
     {
@@ -378,25 +405,30 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         LoadVideoModelCommand.NotifyCanExecuteChanged();
         await _apiProxyService.StartAsync(cancellationToken);
         ApiStatusText = _resources.GetString("ApiReady");
+        IsNetworkAccessEnabled = _apiProxyService.IsNetworkAccessEnabled;
+        NetworkApiStatusText = IsNetworkAccessEnabled
+            ? "Network API is listening without authentication."
+            : "Network access is off. This API only accepts requests from this PC.";
         _isInitialized = true;
     }
 
-    public void Dispose()
+    [RelayCommand]
+    private async Task SetNetworkAccessAsync()
     {
-        _generationCancellation?.Cancel();
-        _generationCancellation?.Dispose();
-        _imageGenerationCancellation?.Cancel();
-        _imageGenerationCancellation?.Dispose();
-        _audioOperationCancellation?.Cancel();
-        _audioOperationCancellation?.Dispose();
-        _videoGenerationCancellation?.Cancel();
-        _videoGenerationCancellation?.Dispose();
-        _runtimeService.StateChanged -= OnRuntimeStateChanged;
-        _imageRuntimeService.StateChanged -= OnImageRuntimeStateChanged;
-        _audioRuntimeService.SpeechToTextStateChanged -= OnSpeechToTextStateChanged;
-        _audioRuntimeService.TextToSpeechStateChanged -= OnTextToSpeechStateChanged;
-        _videoRuntimeService.StateChanged -= OnVideoRuntimeStateChanged;
-        _telemetryService.MetricAdded -= OnMetricAdded;
+        try
+        {
+            await _apiProxyService.SetNetworkAccessAsync(IsNetworkAccessEnabled, CancellationToken.None);
+            NetworkApiStatusText = IsNetworkAccessEnabled
+                ? "Network API is listening without authentication."
+                : "Network access is off. This API only accepts requests from this PC.";
+            OnPropertyChanged(nameof(NetworkApiBaseUrl));
+            ApiStatusText = _resources.GetString("ApiReady");
+        }
+        catch (Exception exception)
+        {
+            IsNetworkAccessEnabled = _apiProxyService.IsNetworkAccessEnabled;
+            NetworkApiStatusText = exception.Message;
+        }
     }
 
     private bool CanLoadModel()

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.NetworkInformation;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -26,6 +27,9 @@ internal sealed class OpenAiProxyService : IApiProxyService
     private readonly IAudioRuntimeService _audioRuntimeService;
     private readonly IVideoRuntimeService _videoRuntimeService;
     private readonly IRequestTelemetryService _telemetryService;
+    private readonly SemaphoreSlim _lifecycleGate = new(1, 1);
+    private readonly string _networkSettingsPath;
+    private NetworkApiSettings _networkSettings;
     private WebApplication? _application;
 
     public OpenAiProxyService(
@@ -44,48 +48,162 @@ internal sealed class OpenAiProxyService : IApiProxyService
         _audioRuntimeService = audioRuntimeService;
         _videoRuntimeService = videoRuntimeService;
         _telemetryService = telemetryService;
+        _networkSettingsPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "MoEModelManager",
+            "network-api.json");
+        _networkSettings = LoadNetworkSettings();
     }
 
     public string BaseUrl => $"http://127.0.0.1:{PublicPort}/v1";
+
+    public string NetworkBaseUrl => $"http://{GetLocalIpv4Address()}:{PublicPort}/v1";
+
+    public bool IsNetworkAccessEnabled => _networkSettings.Enabled;
 
     public bool IsRunning => _application is not null;
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        if (_application is not null)
+        await _lifecycleGate.WaitAsync(cancellationToken);
+        try
         {
-            return;
-        }
+            if (_application is not null)
+            {
+                return;
+            }
 
-        WebApplicationBuilder builder = WebApplication.CreateSlimBuilder();
-        builder.Logging.ClearProviders();
-        builder.WebHost.ConfigureKestrel(options =>
+            WebApplicationBuilder builder = WebApplication.CreateSlimBuilder();
+            builder.Logging.ClearProviders();
+            builder.WebHost.ConfigureKestrel(options =>
+            {
+                options.Limits.MaxRequestBodySize = MaximumRequestBytes;
+                options.Listen(_networkSettings.Enabled ? IPAddress.Any : IPAddress.Loopback, PublicPort);
+            });
+            WebApplication application = builder.Build();
+            application.MapMethods("/{**path}", ["GET", "POST", "DELETE", "OPTIONS"], HandleAsync);
+            await application.StartAsync(cancellationToken);
+            _application = application;
+        }
+        finally
         {
-            options.Limits.MaxRequestBodySize = MaximumRequestBytes;
-            options.Listen(IPAddress.Loopback, PublicPort);
-        });
-        WebApplication application = builder.Build();
-        application.MapMethods("/{**path}", ["GET", "POST", "DELETE", "OPTIONS"], HandleAsync);
-        await application.StartAsync(cancellationToken);
-        _application = application;
+            _lifecycleGate.Release();
+        }
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
     {
-        WebApplication? application = _application;
-        if (application is null)
+        await _lifecycleGate.WaitAsync(cancellationToken);
+        try
         {
-            return;
-        }
+            WebApplication? application = _application;
+            if (application is null)
+            {
+                return;
+            }
 
-        _application = null;
-        await application.StopAsync(cancellationToken);
-        await application.DisposeAsync();
+            _application = null;
+            await application.StopAsync(cancellationToken);
+            await application.DisposeAsync();
+        }
+        finally
+        {
+            _lifecycleGate.Release();
+        }
+    }
+
+    public async Task SetNetworkAccessAsync(bool enabled, CancellationToken cancellationToken)
+    {
+        await _lifecycleGate.WaitAsync(cancellationToken);
+        try
+        {
+            if (_networkSettings.Enabled == enabled)
+            {
+                return;
+            }
+
+            _networkSettings = new NetworkApiSettings { Enabled = enabled };
+            SaveNetworkSettings();
+            WebApplication? application = _application;
+            _application = null;
+            if (application is not null)
+            {
+                await application.StopAsync(cancellationToken);
+                await application.DisposeAsync();
+            }
+
+            WebApplicationBuilder builder = WebApplication.CreateSlimBuilder();
+            builder.Logging.ClearProviders();
+            builder.WebHost.ConfigureKestrel(options =>
+            {
+                options.Limits.MaxRequestBodySize = MaximumRequestBytes;
+                options.Listen(enabled ? IPAddress.Any : IPAddress.Loopback, PublicPort);
+            });
+            WebApplication replacement = builder.Build();
+            replacement.MapMethods("/{**path}", ["GET", "POST", "DELETE", "OPTIONS"], HandleAsync);
+            await replacement.StartAsync(cancellationToken);
+            _application = replacement;
+        }
+        finally
+        {
+            _lifecycleGate.Release();
+        }
     }
 
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
+        _lifecycleGate.Dispose();
+    }
+
+    private NetworkApiSettings LoadNetworkSettings()
+    {
+        try
+        {
+            if (File.Exists(_networkSettingsPath))
+            {
+                return JsonSerializer.Deserialize<NetworkApiSettings>(File.ReadAllText(_networkSettingsPath))
+                    ?? new NetworkApiSettings();
+            }
+        }
+        catch (IOException)
+        {
+        }
+        catch (JsonException)
+        {
+        }
+
+        return new NetworkApiSettings();
+    }
+
+    private void SaveNetworkSettings()
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(_networkSettingsPath)!);
+        File.WriteAllText(_networkSettingsPath, JsonSerializer.Serialize(_networkSettings));
+    }
+
+#pragma warning disable SA1204 // Request helper methods stay near their consumers.
+    private static string GetLocalIpv4Address()
+    {
+        foreach (NetworkInterface networkInterface in NetworkInterface.GetAllNetworkInterfaces())
+        {
+            if (networkInterface.OperationalStatus != OperationalStatus.Up
+                || networkInterface.NetworkInterfaceType is NetworkInterfaceType.Loopback or NetworkInterfaceType.Tunnel)
+            {
+                continue;
+            }
+
+            IPAddress? address = networkInterface.GetIPProperties().UnicastAddresses
+                .Select(item => item.Address)
+                .FirstOrDefault(item => item.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork
+                    && !IPAddress.IsLoopback(item));
+            if (address is not null)
+            {
+                return address.ToString();
+            }
+        }
+
+        return "127.0.0.1";
     }
 
     private static bool IsStreamingRequest(ReadOnlySpan<byte> body)
@@ -351,6 +469,8 @@ internal sealed class OpenAiProxyService : IApiProxyService
         context.Response.ContentType = "application/json";
         await context.Response.WriteAsJsonAsync(value, context.RequestAborted);
     }
+
+#pragma warning restore SA1204
 
     private async Task HandleAsync(HttpContext context)
     {
@@ -777,5 +897,10 @@ internal sealed class OpenAiProxyService : IApiProxyService
 
         [JsonPropertyName("speed")]
         public float Speed { get; init; } = 1f;
+    }
+
+    private sealed class NetworkApiSettings
+    {
+        public bool Enabled { get; init; }
     }
 }
