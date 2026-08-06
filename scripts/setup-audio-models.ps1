@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$ModelRoot = "C:\Users\nakul\Documents\Codex\2026-08-01\to-get-40-tokens-per-second\work\models"
+    [string]$ModelRoot = "E:\Models"
 )
 
 $ErrorActionPreference = "Stop"

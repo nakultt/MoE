@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$ModelDirectory = 'C:\Users\nakul\Documents\Codex\2026-08-01\to-get-40-tokens-per-second\work\models\flux2-klein'
+    [string]$ModelDirectory = 'E:\Models\flux2-klein'
 )
 
 $ErrorActionPreference = 'Stop'

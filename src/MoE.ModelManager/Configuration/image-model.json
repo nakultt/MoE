@@ -2,9 +2,9 @@
   "id": "flux.2-klein-4b",
   "displayName": "FLUX.2 Klein 4B Distilled",
   "description": "Four-step FLUX.2 Klein model with a Q4 CUDA checkpoint tuned for fast local generation.",
-  "diffusionModelPath": "C:\\Users\\nakul\\Documents\\Codex\\2026-08-01\\to-get-40-tokens-per-second\\work\\models\\flux2-klein\\flux-2-klein-4b-Q4_0.gguf",
-  "textEncoderPath": "C:\\Users\\nakul\\Documents\\Codex\\2026-08-01\\to-get-40-tokens-per-second\\work\\models\\flux2-klein\\Qwen3-4B-Q4_K_M.gguf",
-  "vaePath": "C:\\Users\\nakul\\Documents\\Codex\\2026-08-01\\to-get-40-tokens-per-second\\work\\models\\flux2-klein\\flux2-vae.safetensors",
+  "diffusionModelPath": "E:\\Models\\flux2-klein\\flux-2-klein-4b-Q4_0.gguf",
+  "textEncoderPath": "E:\\Models\\flux2-klein\\Qwen3-4B-Q4_K_M.gguf",
+  "vaePath": "E:\\Models\\flux2-klein\\flux2-vae.safetensors",
   "steps": 4,
   "threads": 14
 }

@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$Distribution = 'Ubuntu',
-    [string]$ModelDirectory = 'C:\Users\nakul\Documents\Codex\2026-08-01\to-get-40-tokens-per-second\work\models\fastwan2.2-5b',
+    [string]$ModelDirectory = 'E:\Models\fastwan2.2-5b',
     [switch]$SkipModelDownload
 )
 
