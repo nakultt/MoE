@@ -36,6 +36,21 @@ public sealed class ModelDefinition
     public int VisionImageTokens { get; init; }
 
     /// <summary>
+    /// Gets a value indicating whether the multimodal projector accepts audio input.
+    /// </summary>
+    public bool SupportsAudio { get; init; }
+
+    /// <summary>
+    /// Gets a value indicating whether the multimodal projector accepts video input.
+    /// </summary>
+    public bool SupportsVideo { get; init; }
+
+    /// <summary>
+    /// Gets a value indicating whether the chat template supports reasoning mode selection.
+    /// </summary>
+    public bool SupportsReasoning { get; init; }
+
+    /// <summary>
     /// Gets the configured context size.
     /// </summary>
     public int ContextSize { get; init; }
@@ -79,4 +94,9 @@ public sealed class ModelDefinition
     /// Gets a value indicating whether this model accepts image input.
     /// </summary>
     public bool HasVision => !string.IsNullOrWhiteSpace(VisionProjectorPath);
+
+    /// <summary>
+    /// Gets a value indicating whether this model accepts any media attachment.
+    /// </summary>
+    public bool HasMultimodalInput => HasVision || SupportsAudio || SupportsVideo;
 }

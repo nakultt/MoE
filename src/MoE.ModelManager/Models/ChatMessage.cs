@@ -29,13 +29,22 @@ public sealed partial class ChatMessage : ObservableObject
     /// Gets or sets an optional base64 data URL attached to this message.
     /// </summary>
     [ObservableProperty]
-    public partial string? ImageDataUrl { get; set; }
+    public partial string? AttachmentDataUrl { get; set; }
+
+    [ObservableProperty]
+    public partial string? CompanionAudioDataUrl { get; set; }
 
     /// <summary>
-    /// Gets or sets the display name of the attached image.
+    /// Gets or sets the display name of the attached media file.
     /// </summary>
     [ObservableProperty]
-    public partial string? ImageFileName { get; set; }
+    public partial string? AttachmentFileName { get; set; }
+
+    /// <summary>
+    /// Gets or sets the OpenAI content-part type for the attached media.
+    /// </summary>
+    [ObservableProperty]
+    public partial string? AttachmentKind { get; set; }
 
     /// <summary>
     /// Gets a value indicating whether this message contains assistant Markdown.
@@ -45,7 +54,7 @@ public sealed partial class ChatMessage : ObservableObject
     /// <summary>
     /// Gets the visible attachment label for a multimodal message.
     /// </summary>
-    public string ImageAttachmentSummary => string.IsNullOrWhiteSpace(ImageFileName)
+    public string AttachmentSummary => string.IsNullOrWhiteSpace(AttachmentFileName)
         ? string.Empty
-        : $"📎 {ImageFileName}";
+        : $"📎 {AttachmentFileName}";
 }

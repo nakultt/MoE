@@ -39,7 +39,7 @@
       <Link>VideoRuntime\video-runtime.sh</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="..\..\runtime\llama.cpp-b10218-cuda13\**\*">
+    <Content Include="..\..\runtime\llama.cpp-b10359-cuda12.4\**\*">
       <Link>Runtime\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

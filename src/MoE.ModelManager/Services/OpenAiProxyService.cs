@@ -19,7 +19,7 @@ namespace MoE.ModelManager.Services;
 internal sealed class OpenAiProxyService : IApiProxyService
 {
     private const int PublicPort = 8081;
-    private const int MaximumRequestBytes = 32 * 1024 * 1024;
+    private const int MaximumRequestBytes = 256 * 1024 * 1024;
     private readonly IAppResources _resources;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IModelRuntimeService _runtimeService;
@@ -252,6 +252,61 @@ internal sealed class OpenAiProxyService : IApiProxyService
             return JsonSerializer.SerializeToUtf8Bytes(requestObject);
         }
         catch (JsonException)
+        {
+            return body.ToArray();
+        }
+    }
+
+    private static byte[] NormalizeLlamaMultimodalBody(ReadOnlySpan<byte> body)
+    {
+        try
+        {
+            JsonNode? node = JsonNode.Parse(body);
+            if (node is not JsonObject requestObject
+                || requestObject["messages"] is not JsonArray messages)
+            {
+                return body.ToArray();
+            }
+
+            bool changed = false;
+            foreach (JsonNode? message in messages)
+            {
+                if (message?["content"] is not JsonArray content)
+                {
+                    continue;
+                }
+
+                foreach (JsonNode? part in content)
+                {
+                    string? type = part?["type"]?.GetValue<string>();
+                    if (type is not ("input_audio" or "input_video")
+                        || part?[type] is not JsonObject media)
+                    {
+                        continue;
+                    }
+
+                    foreach (string field in new[] { "data", "url" })
+                    {
+                        string? value = media[field]?.GetValue<string>();
+                        if (string.IsNullOrWhiteSpace(value)
+                            || !value.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+
+                        int comma = value.IndexOf(',', StringComparison.Ordinal);
+                        if (comma >= 0)
+                        {
+                            media[field] = value[(comma + 1)..];
+                            changed = true;
+                        }
+                    }
+                }
+            }
+
+            return changed ? JsonSerializer.SerializeToUtf8Bytes(requestObject) : body.ToArray();
+        }
+        catch (Exception exception) when (exception is JsonException or InvalidOperationException)
         {
             return body.ToArray();
         }
@@ -750,6 +805,13 @@ internal sealed class OpenAiProxyService : IApiProxyService
     {
         Stopwatch stopwatch = Stopwatch.StartNew();
         byte[] requestBody = await ReadRequestBodyAsync(context.Request, context.RequestAborted);
+        if (!useImageRuntime
+            && !useVideoRuntime
+            && path.Equals("/v1/chat/completions", StringComparison.OrdinalIgnoreCase))
+        {
+            requestBody = NormalizeLlamaMultimodalBody(requestBody);
+        }
+
         bool isStreaming = IsStreamingRequest(requestBody);
         if (isStreaming)
         {

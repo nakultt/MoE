@@ -76,7 +76,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public event Action<GeneratedVideoResult>? VideoGenerated;
 
-    public event Action? ChatImageAttachmentCleared;
+    public event Action? ChatAttachmentCleared;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(LoadModelCommand))]
@@ -156,10 +156,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial string UserPrompt { get; set; } = string.Empty;
 
     [ObservableProperty]
-    public partial string SelectedChatImagePath { get; set; } = string.Empty;
+    public partial string SelectedChatAttachmentPath { get; set; } = string.Empty;
 
     [ObservableProperty]
-    public partial string SelectedChatImageName { get; set; } = string.Empty;
+    public partial string SelectedChatAttachmentName { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string SelectedChatAttachmentType { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial bool IsReasoningEnabled { get; set; } = true;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SendMessageCommand))]
@@ -240,7 +246,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<RequestMetric> RequestMetrics { get; } = [];
 
-    public bool CanAttachChatImage => SelectedModel?.HasVision == true;
+    public bool CanAttachChatMedia => SelectedModel?.HasMultimodalInput == true;
+
+    public bool CanConfigureReasoning => SelectedModel?.SupportsReasoning == true;
 
     public IReadOnlyList<string> ImageSizes { get; } = ["512x512", "768x768", "1024x1024"];
 
@@ -343,23 +351,38 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _telemetryService.MetricAdded -= OnMetricAdded;
     }
 
-    public void AttachChatImage(string imagePath)
+    public void AttachChatMedia(string mediaPath)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(imagePath);
-        if (!CanAttachChatImage)
+        ArgumentException.ThrowIfNullOrWhiteSpace(mediaPath);
+        ModelDefinition? model = SelectedModel;
+        if (model is null || !CanAttachChatMedia)
         {
-            throw new InvalidOperationException(_resources.GetString("ErrorModelDoesNotSupportImages"));
+            throw new InvalidOperationException(_resources.GetString("ErrorModelDoesNotSupportMedia"));
         }
 
-        SelectedChatImagePath = imagePath;
-        SelectedChatImageName = Path.GetFileName(imagePath);
+        string extension = Path.GetExtension(mediaPath).ToLowerInvariant();
+        bool isImage = extension is ".png" or ".jpg" or ".jpeg" or ".webp" or ".bmp" or ".gif";
+        bool isAudio = extension is ".wav" or ".mp3" or ".flac";
+        bool isVideo = extension is ".mp4" or ".mkv" or ".webm" or ".mov" or ".avi";
+        if ((isImage && !model.HasVision)
+            || (isAudio && !model.SupportsAudio)
+            || (isVideo && !model.SupportsVideo)
+            || (!isImage && !isAudio && !isVideo))
+        {
+            throw new InvalidOperationException(_resources.GetString("ErrorModelDoesNotSupportMedia"));
+        }
+
+        SelectedChatAttachmentPath = mediaPath;
+        SelectedChatAttachmentName = Path.GetFileName(mediaPath);
+        SelectedChatAttachmentType = isVideo ? "Video attached" : isAudio ? "Audio attached" : "Image attached";
     }
 
-    public void ClearChatImageAttachment()
+    public void ClearChatAttachment()
     {
-        SelectedChatImagePath = string.Empty;
-        SelectedChatImageName = string.Empty;
-        ChatImageAttachmentCleared?.Invoke();
+        SelectedChatAttachmentPath = string.Empty;
+        SelectedChatAttachmentName = string.Empty;
+        SelectedChatAttachmentType = string.Empty;
+        ChatAttachmentCleared?.Invoke();
     }
 
     public async Task InitializeAsync(CancellationToken cancellationToken)
@@ -491,27 +514,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        string? imageDataUrl = null;
-        string? imageFileName = null;
-        if (!string.IsNullOrWhiteSpace(SelectedChatImagePath))
+        MediaDataUrlFactory.MediaAttachment? attachment = null;
+        if (!string.IsNullOrWhiteSpace(SelectedChatAttachmentPath))
         {
-            if (!model.HasVision)
-            {
-                Messages.Add(new ChatMessage
-                {
-                    Role = "assistant",
-                    Author = _resources.GetString("AuthorAssistant"),
-                    Content = _resources.GetString("ErrorModelDoesNotSupportImages"),
-                });
-                return;
-            }
-
             try
             {
-                imageDataUrl = await ImageDataUrlFactory.CreateAsync(
-                    SelectedChatImagePath,
+                attachment = await MediaDataUrlFactory.CreateAsync(
+                    SelectedChatAttachmentPath,
                     CancellationToken.None);
-                imageFileName = SelectedChatImageName;
             }
             catch (Exception exception) when (exception is IOException or InvalidDataException)
             {
@@ -519,7 +529,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 {
                     Role = "assistant",
                     Author = _resources.GetString("AuthorAssistant"),
-                    Content = $"{_resources.GetString("ErrorChatImageFailed")} {exception.Message}",
+                    Content = $"{_resources.GetString("ErrorChatMediaFailed")} {exception.Message}",
                 });
                 return;
             }
@@ -530,8 +540,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Role = "user",
             Author = _resources.GetString("AuthorYou"),
             Content = prompt,
-            ImageDataUrl = imageDataUrl,
-            ImageFileName = imageFileName,
+            AttachmentDataUrl = attachment?.DataUrl,
+            CompanionAudioDataUrl = attachment?.CompanionAudioDataUrl,
+            AttachmentFileName = attachment?.FileName,
+            AttachmentKind = attachment?.ContentPartType,
         };
         Messages.Add(userMessage);
         List<ChatMessage> requestMessages = Messages.ToList();
@@ -542,7 +554,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         };
         Messages.Add(assistantMessage);
         UserPrompt = string.Empty;
-        ClearChatImageAttachment();
+        ClearChatAttachment();
         IsGenerating = true;
         _generationCancellation = new CancellationTokenSource();
 
@@ -551,6 +563,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await foreach (string chunk in _chatService.StreamResponseAsync(
                 model.Id,
                 requestMessages,
+                model.SupportsReasoning ? IsReasoningEnabled : null,
                 _generationCancellation.Token))
             {
                 assistantMessage.Content += chunk;
@@ -981,10 +994,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(SelectedModelPath));
         OnPropertyChanged(nameof(SelectedDescription));
         OnPropertyChanged(nameof(SelectedMeasuredSpeed));
-        OnPropertyChanged(nameof(CanAttachChatImage));
-        if (value?.HasVision != true)
+        OnPropertyChanged(nameof(CanAttachChatMedia));
+        OnPropertyChanged(nameof(CanConfigureReasoning));
+        if (value?.HasMultimodalInput != true)
         {
-            ClearChatImageAttachment();
+            ClearChatAttachment();
         }
     }
 

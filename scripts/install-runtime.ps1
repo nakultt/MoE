@@ -7,14 +7,14 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path $PSScriptRoot -Parent
 . (Join-Path $repoRoot 'settings.ps1')
 
-$release = 'b10218'
-$baseName = 'llama-b10218-bin-win-cuda-13.3-x64.zip'
-$cudaName = 'cudart-llama-bin-win-cuda-13.3-x64.zip'
+$release = 'b10359'
+$baseName = 'llama-b10359-bin-win-cuda-12.4-x64.zip'
+$cudaName = 'cudart-llama-bin-win-cuda-12.4-x64.zip'
 $baseUrl = "https://github.com/ggml-org/llama.cpp/releases/download/$release/$baseName"
 $cudaUrl = "https://github.com/ggml-org/llama.cpp/releases/download/$release/$cudaName"
 $expectedHashes = @{
-    $baseName = 'C275A6A5923E1D665D0B1D2B32AE266241A83936E9A5C2F0453B99D21877C88F'
-    $cudaName = '1462A050EB4C684921BA51DCC4CC488A036674C3E73E9945EE705B854808D03E'
+    $baseName = '73365C6A5FADACCB25502CF054CF5E692C7E4D58CA9E2E228415223470E7D06E'
+    $cudaName = '8C79A9B226DE4B3CACFD1F83D24F962D0773BE79F1E7B75C6AF4DED7E32AE1D6'
 }
 
 $resolvedRepo = (Resolve-Path -LiteralPath $repoRoot).Path
@@ -65,4 +65,4 @@ if (-not (Test-Path -LiteralPath (Join-Path $LlamaRuntimeDir 'ggml-cuda.dll'))) 
     throw 'Runtime installation did not produce ggml-cuda.dll.'
 }
 
-Write-Host "Installed llama.cpp $release with CUDA 13.3 at $LlamaRuntimeDir"
+Write-Host "Installed llama.cpp $release with CUDA 12.4 at $LlamaRuntimeDir"

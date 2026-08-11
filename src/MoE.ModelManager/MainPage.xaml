@@ -326,7 +326,7 @@
                   <TextBlock FontWeight="SemiBold" Text="{x:Bind Author, Mode=OneWay}" />
                   <TextBlock
                       Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
-                      Text="{x:Bind ImageAttachmentSummary, Mode=OneTime}" />
+                      Text="{x:Bind AttachmentSummary, Mode=OneTime}" />
                   <controls:MarkdownRichTextBlock
                       Markdown="{x:Bind Content, Mode=OneWay}"
                       RenderMarkdown="{x:Bind IsAssistant, Mode=OneTime}" />
@@ -353,17 +353,23 @@
                   Height="72"
                   Stretch="Uniform" />
               <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                <TextBlock x:Uid="ChatImageAttachedLabel" FontWeight="SemiBold" />
+                <TextBlock FontWeight="SemiBold" Text="{x:Bind ViewModel.SelectedChatAttachmentType, Mode=OneWay}" />
                 <TextBlock
-                    Text="{x:Bind ViewModel.SelectedChatImageName, Mode=OneWay}"
+                    Text="{x:Bind ViewModel.SelectedChatAttachmentName, Mode=OneWay}"
                     TextTrimming="CharacterEllipsis" />
               </StackPanel>
               <Button
                   x:Uid="RemoveChatImageButton"
                   Grid.Column="2"
-                  Click="OnRemoveChatImageClicked" />
+                  Click="OnRemoveChatMediaClicked" />
             </Grid>
           </Border>
+          <ToggleSwitch
+              Header="Reasoning mode"
+              IsEnabled="{x:Bind ViewModel.CanConfigureReasoning, Mode=OneWay}"
+              IsOn="{x:Bind ViewModel.IsReasoningEnabled, Mode=TwoWay}"
+              OffContent="Direct answer"
+              OnContent="Think before answering" />
           <Grid ColumnSpacing="8">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*" />
@@ -382,8 +388,8 @@
               <Button
                   x:Uid="AttachChatImageButton"
                   AutomationProperties.AutomationId="AttachChatImageButton"
-                  Click="OnSelectChatImageClicked"
-                  IsEnabled="{x:Bind ViewModel.CanAttachChatImage, Mode=OneWay}" />
+                  Click="OnSelectChatMediaClicked"
+                  IsEnabled="{x:Bind ViewModel.CanAttachChatMedia, Mode=OneWay}" />
               <Button
                   x:Name="SendButton"
                   x:Uid="SendButton"

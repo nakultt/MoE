@@ -20,19 +20,25 @@ internal sealed class OpenAiChatService : IOpenAiChatService
     public async IAsyncEnumerable<string> StreamResponseAsync(
         string modelId,
         IReadOnlyList<ChatMessage> messages,
+        bool? enableThinking,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(modelId);
         ArgumentNullException.ThrowIfNull(messages);
 
-        object payload = new
+        Dictionary<string, object> payload = new()
         {
-            model = modelId,
-            messages = messages.Select(CreateMessagePayload),
-            stream = true,
-            stream_options = new { include_usage = true },
-            temperature = 0.2,
+            ["model"] = modelId,
+            ["messages"] = messages.Select(CreateMessagePayload).ToArray(),
+            ["stream"] = true,
+            ["stream_options"] = new { include_usage = true },
+            ["temperature"] = enableThinking == true ? 0.6 : 0.2,
         };
+        if (enableThinking.HasValue)
+        {
+            payload["chat_template_kwargs"] = new { enable_thinking = enableThinking.Value };
+        }
+
         using HttpRequestMessage request = new(
             HttpMethod.Post,
             $"{_apiProxyService.BaseUrl}/chat/completions")
@@ -68,29 +74,67 @@ internal sealed class OpenAiChatService : IOpenAiChatService
 
     private static object CreateMessagePayload(ChatMessage message)
     {
-        object content = string.IsNullOrWhiteSpace(message.ImageDataUrl)
+        object content = string.IsNullOrWhiteSpace(message.AttachmentDataUrl)
             ? message.Content
-            : new object[]
-            {
-                new
-                {
-                    type = "text",
-                    text = message.Content,
-                },
-                new
-                {
-                    type = "image_url",
-                    image_url = new
-                    {
-                        url = message.ImageDataUrl,
-                    },
-                },
-            };
+            : CreateMultimodalContent(message);
         return new
         {
             role = message.Role,
             content,
         };
+    }
+
+    private static object[] CreateMultimodalContent(ChatMessage message)
+    {
+        object mediaPart = message.AttachmentKind switch
+        {
+            "input_audio" => new
+            {
+                type = "input_audio",
+                input_audio = new { data = StripDataUrlPrefix(message.AttachmentDataUrl) },
+            },
+            "input_video" => new
+            {
+                type = "input_video",
+                input_video = new { data = StripDataUrlPrefix(message.AttachmentDataUrl) },
+            },
+            _ => new
+            {
+                type = "image_url",
+                image_url = new { url = message.AttachmentDataUrl },
+            },
+        };
+        List<object> content =
+        [
+            new
+            {
+                type = "text",
+                text = message.Content,
+            },
+            mediaPart,
+        ];
+        if (!string.IsNullOrWhiteSpace(message.CompanionAudioDataUrl))
+        {
+            content.Add(new
+            {
+                type = "input_audio",
+                input_audio = new { data = StripDataUrlPrefix(message.CompanionAudioDataUrl) },
+            });
+        }
+
+        return [.. content];
+    }
+
+    private static string? StripDataUrlPrefix(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)
+            || !value.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+        {
+            return value;
+        }
+
+        int comma = value.IndexOf(',', StringComparison.Ordinal);
+        return comma >= 0 ? value[(comma + 1)..] : value;
     }
 
     private static string? ReadContentDelta(string json)

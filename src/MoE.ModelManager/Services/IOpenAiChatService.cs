@@ -7,5 +7,6 @@ internal interface IOpenAiChatService
     IAsyncEnumerable<string> StreamResponseAsync(
         string modelId,
         IReadOnlyList<ChatMessage> messages,
+        bool? enableThinking,
         CancellationToken cancellationToken);
 }

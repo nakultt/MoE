@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)]
-    [ValidateSet('qwen3.6-35b-a3b', 'gemma-4-26b-a4b')]
+    [ValidateSet('qwen3.6-35b-a3b', 'gemma-4-26b-a4b', 'nemotron-3-nano-omni-30b-a3b')]
     [string]$ModelId,
 
     [Parameter(Mandatory)]
@@ -10,7 +10,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path $PSScriptRoot -Parent
-$serverPath = Join-Path $repoRoot 'runtime\llama.cpp-b10218-cuda13\llama-server.exe'
+. (Join-Path $repoRoot 'settings.ps1')
+$serverPath = Join-Path $LlamaRuntimeDir 'llama-server.exe'
 $catalogPath = Join-Path $repoRoot 'src\MoE.ModelManager\Configuration\models.json'
 $logDirectory = Join-Path $repoRoot 'artifacts\vision-test'
 $resolvedImagePath = (Resolve-Path -LiteralPath $ImagePath).Path

@@ -28,10 +28,22 @@ public sealed class ModelDefinitionTests
         Assert.AreEqual(expected, model.HasDraftModel);
     }
 
+    [TestMethod]
+    public void HasMultimodalInputIncludesAudioAndVideoCapabilities()
+    {
+        ModelDefinition audioModel = CreateModel(supportsAudio: true);
+        ModelDefinition videoModel = CreateModel(supportsVideo: true);
+
+        Assert.IsTrue(audioModel.HasMultimodalInput);
+        Assert.IsTrue(videoModel.HasMultimodalInput);
+    }
+
     private static ModelDefinition CreateModel(
         string? visionProjectorPath = null,
         string? draftModelPath = null,
-        int draftTokens = 0)
+        int draftTokens = 0,
+        bool supportsAudio = false,
+        bool supportsVideo = false)
     {
         return new ModelDefinition
         {
@@ -40,6 +52,8 @@ public sealed class ModelDefinitionTests
             Description = "Test description",
             ModelPath = "model.gguf",
             VisionProjectorPath = visionProjectorPath,
+            SupportsAudio = supportsAudio,
+            SupportsVideo = supportsVideo,
             ContextSize = 8192,
             CpuMoeLayers = 20,
             CacheType = "q8_0",

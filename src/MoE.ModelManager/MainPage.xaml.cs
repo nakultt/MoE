@@ -26,7 +26,7 @@ public sealed partial class MainPage : Page
         ViewModel.ImageGenerated += OnImageGenerated;
         ViewModel.SpeechGenerated += OnSpeechGenerated;
         ViewModel.VideoGenerated += OnVideoGenerated;
-        ViewModel.ChatImageAttachmentCleared += OnChatImageAttachmentCleared;
+        ViewModel.ChatAttachmentCleared += OnChatAttachmentCleared;
     }
 
     public MainViewModel ViewModel { get; }
@@ -49,7 +49,7 @@ public sealed partial class MainPage : Page
         ViewModel.ImageGenerated -= OnImageGenerated;
         ViewModel.SpeechGenerated -= OnSpeechGenerated;
         ViewModel.VideoGenerated -= OnVideoGenerated;
-        ViewModel.ChatImageAttachmentCleared -= OnChatImageAttachmentCleared;
+        ViewModel.ChatAttachmentCleared -= OnChatAttachmentCleared;
         ViewModel.Dispose();
     }
 
@@ -100,10 +100,32 @@ public sealed partial class MainPage : Page
         }
     }
 
-    private async void OnSelectChatImageClicked(object sender, RoutedEventArgs e)
+    private async void OnSelectChatMediaClicked(object sender, RoutedEventArgs e)
     {
+        ModelDefinition? model = ViewModel.SelectedModel;
+        if (model is null)
+        {
+            return;
+        }
+
         FileOpenPicker picker = new();
-        foreach (string extension in new[] { ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif" })
+        List<string> extensions = [];
+        if (model.HasVision)
+        {
+            extensions.AddRange([".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"]);
+        }
+
+        if (model.SupportsAudio)
+        {
+            extensions.AddRange([".wav", ".mp3", ".flac"]);
+        }
+
+        if (model.SupportsVideo)
+        {
+            extensions.AddRange([".mp4", ".mkv", ".webm", ".mov", ".avi"]);
+        }
+
+        foreach (string extension in extensions)
         {
             picker.FileTypeFilter.Add(extension);
         }
@@ -122,22 +144,34 @@ public sealed partial class MainPage : Page
             return;
         }
 
-        ViewModel.AttachChatImage(file.Path);
-        using IRandomAccessStream stream = await file.OpenAsync(Windows.Storage.FileAccessMode.Read);
-        BitmapImage bitmap = new();
-        await bitmap.SetSourceAsync(stream);
-        ChatImagePreview.Source = bitmap;
+        ViewModel.AttachChatMedia(file.Path);
+        string selectedExtension = Path.GetExtension(file.Path).ToLowerInvariant();
+        if (selectedExtension is ".png" or ".jpg" or ".jpeg" or ".webp" or ".bmp" or ".gif")
+        {
+            using IRandomAccessStream stream = await file.OpenAsync(Windows.Storage.FileAccessMode.Read);
+            BitmapImage bitmap = new();
+            await bitmap.SetSourceAsync(stream);
+            ChatImagePreview.Source = bitmap;
+            ChatImagePreview.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            ChatImagePreview.Source = null;
+            ChatImagePreview.Visibility = Visibility.Collapsed;
+        }
+
         ChatImageAttachmentPanel.Visibility = Visibility.Visible;
     }
 
-    private void OnRemoveChatImageClicked(object sender, RoutedEventArgs e)
+    private void OnRemoveChatMediaClicked(object sender, RoutedEventArgs e)
     {
-        ViewModel.ClearChatImageAttachment();
+        ViewModel.ClearChatAttachment();
     }
 
-    private void OnChatImageAttachmentCleared()
+    private void OnChatAttachmentCleared()
     {
         ChatImagePreview.Source = null;
+        ChatImagePreview.Visibility = Visibility.Visible;
         ChatImageAttachmentPanel.Visibility = Visibility.Collapsed;
     }
 
