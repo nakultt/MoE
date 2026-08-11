@@ -148,12 +148,12 @@ try {
         @{ type = 'image_url'; image_url = @{ url = ConvertTo-MediaDataUrl $ImagePath } }
     ) -EnableThinking $false
     $results += Invoke-NemotronChat -Name 'audio' -Content @(
-        @{ type = 'text'; text = 'Transcribe this audio, then summarize it in one sentence.' },
-        @{ type = 'input_audio'; input_audio = @{ data = ConvertTo-MediaDataUrl $AudioPath -RawBase64 } }
+        @{ type = 'input_audio'; input_audio = @{ data = ConvertTo-MediaDataUrl $AudioPath -RawBase64 } },
+        @{ type = 'text'; text = 'Transcribe this audio, then summarize it in one sentence.' }
     ) -EnableThinking $false
     $results += Invoke-NemotronChat -Name 'video' -Content @(
-        @{ type = 'text'; text = 'Describe the main visible action in this video in one sentence.' },
-        @{ type = 'input_video'; input_video = @{ data = ConvertTo-MediaDataUrl $VideoPath -RawBase64 } }
+        @{ type = 'input_video'; input_video = @{ data = ConvertTo-MediaDataUrl $VideoPath -RawBase64 } },
+        @{ type = 'text'; text = 'Describe the main visible action in this video in one sentence.' }
     ) -EnableThinking $false
     $results | Tee-Object -Variable verifiedResults | Format-List
     $verifiedResults | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $logDirectory 'results.json') -Encoding utf8

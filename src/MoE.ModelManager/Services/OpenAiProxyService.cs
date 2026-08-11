@@ -302,6 +302,21 @@ internal sealed class OpenAiProxyService : IApiProxyService
                         }
                     }
                 }
+
+                List<JsonNode?> mediaFirst = content
+                    .Where(IsAudioOrVideoPart)
+                    .Concat(content.Where(part => !IsAudioOrVideoPart(part)))
+                    .ToList();
+                if (!content.SequenceEqual(mediaFirst))
+                {
+                    content.Clear();
+                    foreach (JsonNode? part in mediaFirst)
+                    {
+                        content.Add(part);
+                    }
+
+                    changed = true;
+                }
             }
 
             return changed ? JsonSerializer.SerializeToUtf8Bytes(requestObject) : body.ToArray();
@@ -310,6 +325,12 @@ internal sealed class OpenAiProxyService : IApiProxyService
         {
             return body.ToArray();
         }
+    }
+
+    private static bool IsAudioOrVideoPart(JsonNode? part)
+    {
+        string? type = part?["type"]?.GetValue<string>();
+        return type is "input_audio" or "input_video";
     }
 
     private static void ApplyCors(HttpResponse response)

@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using MoE.ModelManager.Models;
 
 namespace MoE.ModelManager.Services;
@@ -84,57 +85,13 @@ internal sealed class OpenAiChatService : IOpenAiChatService
         };
     }
 
-    private static object[] CreateMultimodalContent(ChatMessage message)
+    private static JsonArray CreateMultimodalContent(ChatMessage message)
     {
-        object mediaPart = message.AttachmentKind switch
-        {
-            "input_audio" => new
-            {
-                type = "input_audio",
-                input_audio = new { data = StripDataUrlPrefix(message.AttachmentDataUrl) },
-            },
-            "input_video" => new
-            {
-                type = "input_video",
-                input_video = new { data = StripDataUrlPrefix(message.AttachmentDataUrl) },
-            },
-            _ => new
-            {
-                type = "image_url",
-                image_url = new { url = message.AttachmentDataUrl },
-            },
-        };
-        List<object> content =
-        [
-            new
-            {
-                type = "text",
-                text = message.Content,
-            },
-            mediaPart,
-        ];
-        if (!string.IsNullOrWhiteSpace(message.CompanionAudioDataUrl))
-        {
-            content.Add(new
-            {
-                type = "input_audio",
-                input_audio = new { data = StripDataUrlPrefix(message.CompanionAudioDataUrl) },
-            });
-        }
-
-        return [.. content];
-    }
-
-    private static string? StripDataUrlPrefix(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value)
-            || !value.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
-        {
-            return value;
-        }
-
-        int comma = value.IndexOf(',', StringComparison.Ordinal);
-        return comma >= 0 ? value[(comma + 1)..] : value;
+        return MultimodalContentBuilder.Build(
+            message.Content,
+            message.AttachmentKind ?? "image_url",
+            message.AttachmentDataUrl!,
+            message.CompanionAudioDataUrl);
     }
 
     private static string? ReadContentDelta(string json)

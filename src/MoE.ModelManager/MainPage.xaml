@@ -306,7 +306,18 @@
           <RowDefinition Height="*" />
           <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <TextBlock x:Uid="ChatHeading" Style="{ThemeResource SubtitleTextBlockStyle}" />
+        <Grid ColumnSpacing="8">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <TextBlock x:Uid="ChatHeading" Style="{ThemeResource SubtitleTextBlockStyle}" />
+          <Button
+              x:Uid="NewChatButton"
+              Grid.Column="1"
+              AutomationProperties.AutomationId="NewChatButton"
+              Command="{x:Bind ViewModel.NewChatCommand}" />
+        </Grid>
         <ListView
             x:Name="ChatList"
             x:Uid="ChatList"

@@ -94,6 +94,8 @@
   <data name="CancelVideoButton.Content" xml:space="preserve"><value>Stop</value></data>
   <data name="CancelVideoButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Stop video generation and eject runtime</value></data>
   <data name="ChatList.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Chat conversation</value></data>
+  <data name="NewChatButton.Content" xml:space="preserve"><value>New chat</value></data>
+  <data name="NewChatButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Clear conversation and start a new chat</value></data>
   <data name="PromptBox.Header" xml:space="preserve"><value>Message</value></data>
   <data name="PromptBox.PlaceholderText" xml:space="preserve"><value>Ask the loaded model anything…</value></data>
   <data name="PromptBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Chat message</value></data>

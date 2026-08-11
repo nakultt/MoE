@@ -454,6 +454,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    [RelayCommand]
+    private void NewChat()
+    {
+        _generationCancellation?.Cancel();
+        UserPrompt = string.Empty;
+        ClearChatAttachment();
+        Messages.Clear();
+    }
+
     private bool CanLoadModel()
     {
         return SelectedModel is not null

@@ -5,7 +5,7 @@ Native WinUI 3 desktop control center for local Nemotron 3 Nano Omni, Qwen3.6, G
 ## What is included
 
 - Model selection, load, eject, and live runtime status.
-- Streaming local chat with native Markdown rendering and image, audio, or video attachments. Nemotron Omni can switch reasoning on or off per request.
+- Streaming local chat with native Markdown rendering and image, audio, or video attachments. Nemotron Omni can switch reasoning on or off per request, and **New chat** clears prior context without ejecting the model.
 - FLUX.2 Klein image generation with size selection, in-app preview, automatic local saving, and cancel support.
 - FastWan2.2 three-step video generation with Turbo, Balanced, and Quality presets, in-app MP4 playback, local saving, and stop/eject support.
 - Native C# speech-to-text with Parakeet TDT 0.6B v3 INT8 and text-to-speech with Kokoro 82M, including editable transcription, voice/speed selection, WAV playback, and local saving.
@@ -435,7 +435,7 @@ Standard OpenAI chat completions endpoint. Supports both streaming (SSE) and non
 
 #### Request body — Nemotron audio/video with reasoning disabled
 
-Use `input_audio` or `input_video`; `data` accepts either raw base64 or a data URL, while `url` accepts a reachable media URL. The public app API automatically removes data-URL prefixes before forwarding audio/video to llama.cpp b10359. The desktop app performs the same normalization for local attachments. If calling `llama-server` directly instead of port 8081, send raw base64 for audio and video.
+Use `input_audio` or `input_video`; `data` accepts either raw base64 or a data URL, while `url` accepts a reachable media URL. Place audio/video items before their text question, matching NVIDIA's reference Nemotron format. The public app API automatically removes data-URL prefixes before forwarding audio/video to llama.cpp b10359. The desktop app performs the same normalization and ordering for local attachments. If calling `llama-server` directly instead of port 8081, send raw base64 for audio and video.
 
 ```json
 {
@@ -444,10 +444,6 @@ Use `input_audio` or `input_video`; `data` accepts either raw base64 or a data U
     {
       "role": "user",
       "content": [
-        {
-          "type": "text",
-          "text": "Transcribe the speech and summarize the visible events."
-        },
         {
           "type": "input_audio",
           "input_audio": {
@@ -459,6 +455,10 @@ Use `input_audio` or `input_video`; `data` accepts either raw base64 or a data U
           "input_video": {
             "data": "data:video/mp4;base64,AAAAIGZ0eXB..."
           }
+        },
+        {
+          "type": "text",
+          "text": "Transcribe the speech and summarize the visible events."
         }
       ]
     }
@@ -1672,7 +1672,7 @@ Set-Location E:\Github\MoE
 ```
 
 
-- `artifacts\MoE.ModelManager_1.7.1.0_x64.msix`
+- `artifacts\MoE.ModelManager_1.7.2.0_x64.msix`
 - `artifacts\MoE.ModelManager-devcert.cer`
 
 This is a locally signed development installer. Install it with:

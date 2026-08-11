@@ -24,6 +24,7 @@
     <Compile Include="..\MoE.ModelManager\Services\LlamaArgumentsBuilder.cs" Link="Source\LlamaArgumentsBuilder.cs" />
     <Compile Include="..\MoE.ModelManager\Services\ImageRuntimeArgumentsBuilder.cs" Link="Source\ImageRuntimeArgumentsBuilder.cs" />
     <Compile Include="..\MoE.ModelManager\Services\MediaDataUrlFactory.cs" Link="Source\MediaDataUrlFactory.cs" />
+    <Compile Include="..\MoE.ModelManager\Services\MultimodalContentBuilder.cs" Link="Source\MultimodalContentBuilder.cs" />
     <Compile Include="..\MoE.ModelManager\Services\VideoRuntimeConfigurationBuilder.cs" Link="Source\VideoRuntimeConfigurationBuilder.cs" />
     <Compile Include="..\MoE.ModelManager\Services\WaveAudioData.cs" Link="Source\WaveAudioData.cs" />
     <Compile Include="..\MoE.ModelManager\Services\WaveAudioReader.cs" Link="Source\WaveAudioReader.cs" />
