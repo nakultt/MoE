@@ -227,7 +227,7 @@ The winning Q8 length-2 configuration was also screened with 18–22 CPU MoE lay
 
 The configured [`APEX-I-Nano` GGUF](https://huggingface.co/mudler/Nemotron-3-Nano-Omni-30B-A3B-Reasoning-APEX-GGUF) is a community low-memory quant derived from NVIDIA's official reasoning checkpoint. Its 16.77 GiB model plus 2.783 GiB CPU-resident multimodal projector can run with expert offload on this machine's 8 GB RTX 4060 and 32 GB system RAM. The projector is rebuilt locally from NVIDIA's official BF16 media shard and contains both CRADIO vision and Parakeet audio encoders; the community repository's supplied 1.48 GiB projector contains vision tensors only despite its model-card description. NVIDIA's official FP8/NVFP4 deployment requires substantially more VRAM and is not used by this configuration. The optimized profile keeps the first 40 layers' MoE weights on CPU, moves later expert weights to the GPU, uses an 8,192-token context and Q8 KV cache, and leaves the projector in system RAM.
 
-This is not NVIDIA's reference/native-video deployment. NVIDIA specifies at least an RTX 5090 32 GB for the official 21 GB NVFP4 checkpoint, 48 GB for FP8, or an H100 80 GB for BF16. The reference vLLM pipeline samples video at up to 1–2 FPS / 128–256 frames and can process embedded audio. On the 8 GB profile, llama.cpp decodes representative frames through CRADIO and the app submits the first embedded audio track separately through Parakeet. This preserves local video+speech Q&A but may differ in temporal accuracy and output quality from the official vLLM/TensorRT pipeline.
+This is not NVIDIA's reference/native-video deployment. NVIDIA specifies at least an RTX 5090 32 GB for the official 21 GB NVFP4 checkpoint, 48 GB for FP8, or an H100 80 GB for BF16. The reference vLLM pipeline samples video at up to 1–2 FPS / 128–256 frames and can process embedded audio. On the 8 GB/32 GB profile, the desktop app uniformly samples four 384×384 frames across the complete clip and submits them through CRADIO as an ordered image sequence, while the first embedded audio track is submitted separately through Parakeet. This avoids llama.cpp's long-video context/RAM failure while preserving local video+speech Q&A, but temporal accuracy may differ from the official vLLM/TensorRT pipeline.
 
 Use the **Reasoning mode** switch in the Chat tab. Turning it off sends `chat_template_kwargs.enable_thinking=false`; turning it on sends `true`. The same field is available to external API clients. Attach one supported file per desktop message:
 
@@ -237,7 +237,7 @@ Use the **Reasoning mode** switch in the Chat tab. Turning it off sends `chat_te
 | Audio | 64 MB | WAV, MP3, FLAC |
 | Video | 180 MB | MP4, MKV, WebM, MOV, AVI |
 
-For a video with an audio track, the desktop app automatically extracts the first track as 16 kHz mono WAV and submits it together with the decoded video frames. This matters because llama.cpp's native `input_video` decoder otherwise consumes only the visual stream. The packaged llama.cpp b10359 runtime reads video through `ffmpeg` and `ffprobe`; install FFmpeg and ensure both executables are available on `PATH`. Model load and media ingestion may take much longer than token generation because most expert weights and the projector reside in system RAM.
+For a video with an audio track, the desktop app automatically extracts the first track as 16 kHz mono WAV and submits it after four uniformly sampled JPEG frames and before the text question. The packaged runtime uses `ffmpeg` and `ffprobe`; install FFmpeg and ensure both executables are available on `PATH`. The verified 28.5-second starship clip used 1,054 prompt tokens and returned a correct visible launch description at 40.73 TPS. Native `input_video` remains available to external API clients, but on this 8K/32 GB configuration long clips should likewise be converted to a small ordered `image_url` sequence plus `input_audio`.
 
 For direct llama.cpp use without the desktop app:
 
@@ -1121,7 +1121,7 @@ graph LR
     TXT["Text"] --> PROJ["Nemotron chat template"]
     IMG["Image"] --> MMP["Multimodal projector · CPU"]
     AUD["Audio"] --> MMP
-    VID["Video · FFmpeg decode"] --> MMP
+    VID["Video · 4 uniformly sampled frames"] --> MMP
     MMP --> LLM["30B-A3B hybrid MoE · 52 layers"]
     PROJ --> LLM
     LLM --> MODE{"Reasoning enabled?"}
@@ -1158,7 +1158,7 @@ A longer three-run confirmation at 40 layers produced 28.21, 39.74, and 38.83 TP
 
 Moving two additional expert layers to the GPU (`-ncmoe 38`) filled roughly 7.78 GB of dedicated VRAM and reduced screening speed to 24.55 TPS. Lower-bit KV caches, a 2K context, 14 or 28 threads, and the Ultimate Performance power plan were also tested; none beat the 40-layer profile. Disabling mmap briefly reached 40.47 TPS, but a five-run 512-token test declined from 40.38 to 34.77 TPS and had a 36.92 TPS median, so it is intentionally not enabled. Unlike Gemma, this Nemotron GGUF has no compatible MTP draft tensors, so Gemma's 51.51 TPS speculative-decoding advantage cannot be reproduced. A repeatable 50+ TPS target is therefore not realistic for this 19.55 GiB model-plus-projector stack on an 8 GB RTX 4060; the verified warm target is approximately 39 TPS.
 
-The end-to-end local verification passed all five paths with the combined projector: direct text, reasoning text, image understanding, audio transcription, and video understanding. Video input is decoded locally into frames by llama.cpp. When a video is attached in the desktop UI, FFmpeg also extracts its first audio stream and submits it as a companion audio item, preserving both visible and spoken information without a cloud service.
+The end-to-end local verification passed all five paths with the combined projector: direct text, reasoning text, image understanding, audio transcription, and video understanding. Desktop video input is converted locally into four uniformly sampled frames; FFmpeg also extracts its first audio stream and submits it as a companion audio item, preserving visible progression and spoken information without a cloud service.
 
 ---
 
@@ -1674,7 +1674,7 @@ Set-Location E:\Github\MoE
 ```
 
 
-- `artifacts\MoE.ModelManager_1.7.2.0_x64.msix`
+- `artifacts\MoE.ModelManager_1.7.3.0_x64.msix`
 - `artifacts\MoE.ModelManager-devcert.cer`
 
 This is a locally signed development installer. Install it with:

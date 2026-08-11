@@ -3,6 +3,10 @@ param(
     [string]$ImagePath = (Join-Path (Split-Path $PSScriptRoot -Parent) 'src\MoE.ModelManager\Assets\Square150x150Logo.scale-200.png'),
     [string]$AudioPath = (Join-Path (Split-Path $PSScriptRoot -Parent) 'work\api-speech.wav'),
     [string]$VideoPath = (Join-Path (Split-Path $PSScriptRoot -Parent) 'artifacts\FastWan2.2-verified-6c3fdccd01bb4a1fbb8d449c2cd04360.mp4'),
+    [string]$VideoFramesDirectory = '',
+    [ValidateRange(0, 52)]
+    [int]$CpuMoeLayers = 40,
+    [switch]$ProjectorOffload,
     [int]$Port = 8092
 )
 
@@ -93,7 +97,7 @@ $arguments = @(
     '-m', $NemotronOmniModelPath,
     '-c', '8192',
     '-ngl', '999',
-    '-ncmoe', '40',
+    '-ncmoe', "$CpuMoeLayers",
     '-ctk', 'q8_0',
     '-ctv', 'q8_0',
     '-fa', 'on',
@@ -108,9 +112,11 @@ $arguments = @(
     '--jinja',
     '-rea', 'off',
     '--metrics',
-    '--mmproj', $NemotronOmniProjectorPath,
-    '--no-mmproj-offload'
+    '--mmproj', $NemotronOmniProjectorPath
 )
+if (-not $ProjectorOffload) {
+    $arguments += '--no-mmproj-offload'
+}
 $process = Start-Process `
     -FilePath $serverPath `
     -ArgumentList $arguments `
@@ -151,10 +157,17 @@ try {
         @{ type = 'input_audio'; input_audio = @{ data = ConvertTo-MediaDataUrl $AudioPath -RawBase64 } },
         @{ type = 'text'; text = 'Transcribe this audio, then summarize it in one sentence.' }
     ) -EnableThinking $false
-    $results += Invoke-NemotronChat -Name 'video' -Content @(
-        @{ type = 'input_video'; input_video = @{ data = ConvertTo-MediaDataUrl $VideoPath -RawBase64 } },
-        @{ type = 'text'; text = 'Describe the main visible action in this video in one sentence.' }
-    ) -EnableThinking $false
+    $videoContent = @()
+    if ($VideoFramesDirectory) {
+        foreach ($frame in Get-ChildItem -LiteralPath $VideoFramesDirectory -File | Sort-Object Name) {
+            $videoContent += @{ type = 'image_url'; image_url = @{ url = ConvertTo-MediaDataUrl $frame.FullName } }
+        }
+    }
+    else {
+        $videoContent += @{ type = 'input_video'; input_video = @{ data = ConvertTo-MediaDataUrl $VideoPath -RawBase64 } }
+    }
+    $videoContent += @{ type = 'text'; text = 'Describe the main visible action in this video sequence in one sentence.' }
+    $results += Invoke-NemotronChat -Name 'video' -Content $videoContent -EnableThinking $false
     $results | Tee-Object -Variable verifiedResults | Format-List
     $verifiedResults | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $logDirectory 'results.json') -Encoding utf8
 }

@@ -91,7 +91,8 @@ internal sealed class OpenAiChatService : IOpenAiChatService
             message.Content,
             message.AttachmentKind ?? "image_url",
             message.AttachmentDataUrl!,
-            message.CompanionAudioDataUrl);
+            message.CompanionAudioDataUrl,
+            message.VideoFrameDataUrls);
     }
 
     private static string? ReadContentDelta(string json)

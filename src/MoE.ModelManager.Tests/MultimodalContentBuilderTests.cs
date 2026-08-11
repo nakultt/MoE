@@ -35,6 +35,27 @@ public sealed class MultimodalContentBuilderTests
     }
 
     [TestMethod]
+    public void SampledVideoFramesReplaceNativeVideoBeforeAudioAndText()
+    {
+        string[] frames =
+        [
+            "data:image/jpeg;base64,frame1",
+            "data:image/jpeg;base64,frame2",
+        ];
+        JsonArray content = MultimodalContentBuilder.Build(
+            "Describe what you see and hear.",
+            "input_video",
+            "data:video/mp4;base64,AAAA",
+            "data:audio/wav;base64,UklG",
+            frames);
+
+        CollectionAssert.AreEqual(
+            new[] { "image_url", "image_url", "input_audio", "text" },
+            content.Select(part => part!["type"]!.GetValue<string>()).ToArray());
+        Assert.AreEqual(frames[0], content[0]!["image_url"]!["url"]!.GetValue<string>());
+    }
+
+    [TestMethod]
     public void ImageRetainsTextFirstReferenceOrdering()
     {
         JsonArray content = MultimodalContentBuilder.Build(

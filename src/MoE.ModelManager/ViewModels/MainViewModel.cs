@@ -551,6 +551,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Content = prompt,
             AttachmentDataUrl = attachment?.DataUrl,
             CompanionAudioDataUrl = attachment?.CompanionAudioDataUrl,
+            VideoFrameDataUrls = attachment?.VideoFrameDataUrls,
             AttachmentFileName = attachment?.FileName,
             AttachmentKind = attachment?.ContentPartType,
         };
@@ -576,6 +577,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 _generationCancellation.Token))
             {
                 assistantMessage.Content += chunk;
+            }
+
+            if (string.IsNullOrWhiteSpace(assistantMessage.Content))
+            {
+                assistantMessage.Content = _resources.GetString("ErrorChatEmptyResponse");
             }
         }
         catch (OperationCanceledException)

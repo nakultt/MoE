@@ -34,6 +34,9 @@ public sealed partial class ChatMessage : ObservableObject
     [ObservableProperty]
     public partial string? CompanionAudioDataUrl { get; set; }
 
+    [ObservableProperty]
+    public partial IReadOnlyList<string>? VideoFrameDataUrls { get; set; }
+
     /// <summary>
     /// Gets or sets the display name of the attached media file.
     /// </summary>

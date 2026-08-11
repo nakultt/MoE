@@ -20,17 +20,39 @@ public sealed class MediaDataUrlFactoryTests
             await File.WriteAllBytesAsync(path, [1, 2, 3, 4]);
 
             MediaDataUrlFactory.MediaAttachment result =
-                await MediaDataUrlFactory.CreateAsync(path, CancellationToken.None, extractEmbeddedAudio: false);
+                await MediaDataUrlFactory.CreateAsync(
+                    path,
+                    CancellationToken.None,
+                    extractEmbeddedAudio: false,
+                    optimizeVideo: false);
 
             StringAssert.StartsWith(result.DataUrl, expectedPrefix);
             Assert.AreEqual(expectedContentPartType, result.ContentPartType);
             Assert.AreEqual(Path.GetFileName(path), result.FileName);
             Assert.IsNull(result.CompanionAudioDataUrl);
+            Assert.IsNull(result.VideoFrameDataUrls);
         }
         finally
         {
             File.Delete(path);
         }
+    }
+
+    [DataRow(2d, 2d)]
+    [DataRow(6d, 0.6666666666666666d)]
+    [DataRow(24d, 0.16666666666666666d)]
+    [DataRow(120d, 0.03333333333333333d)]
+    [TestMethod]
+    public void CalculateVideoSamplingRateLimitsMediaToFourFrames(
+        double durationSeconds,
+        double expectedFramesPerSecond)
+    {
+        double actual = MediaDataUrlFactory.CalculateVideoSamplingRate(durationSeconds);
+
+        Assert.AreEqual(expectedFramesPerSecond, actual, 0.000001d);
+        Assert.IsLessThanOrEqualTo(
+            MediaDataUrlFactory.MaximumVideoFrames + 0.000001d,
+            actual * durationSeconds);
     }
 
     [TestMethod]

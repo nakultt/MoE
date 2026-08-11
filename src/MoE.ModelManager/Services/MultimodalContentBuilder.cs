@@ -8,7 +8,8 @@ internal static class MultimodalContentBuilder
         string text,
         string attachmentKind,
         string attachmentDataUrl,
-        string? companionAudioDataUrl = null)
+        string? companionAudioDataUrl = null,
+        IReadOnlyList<string>? videoFrameDataUrls = null)
     {
         JsonObject textPart = new()
         {
@@ -25,8 +26,20 @@ internal static class MultimodalContentBuilder
             return content;
         }
 
-        // NVIDIA's reference Nemotron format places audio/video before its question.
-        content.Add(mediaPart);
+        // Four uniformly sampled frames avoid llama.cpp's long-video decoder/context failure on 32 GB RAM.
+        if (attachmentKind == "input_video" && videoFrameDataUrls?.Count > 0)
+        {
+            foreach (string frameDataUrl in videoFrameDataUrls)
+            {
+                content.Add(CreateMediaPart("image_url", frameDataUrl));
+            }
+        }
+        else
+        {
+            // NVIDIA's reference Nemotron format places audio/video before its question.
+            content.Add(mediaPart);
+        }
+
         if (!string.IsNullOrWhiteSpace(companionAudioDataUrl))
         {
             content.Add(CreateMediaPart("input_audio", companionAudioDataUrl));
