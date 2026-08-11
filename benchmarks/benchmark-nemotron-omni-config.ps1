@@ -21,6 +21,8 @@ param(
     [ValidateRange(1, 5)]
     [int]$Runs = 2,
 
+    [switch]$NoMmap,
+
     [ValidateRange(1024, 65535)]
     [int]$Port = 8094
 )
@@ -61,6 +63,9 @@ $arguments = @(
     '--mmproj', $NemotronOmniProjectorPath,
     '--no-mmproj-offload'
 )
+if ($NoMmap) {
+    $arguments += '--no-mmap'
+}
 
 $process = Start-Process `
     -FilePath $server `
@@ -125,6 +130,7 @@ try {
         cache_type = $CacheType
         threads = $Threads
         cpu_mask = $CpuMask
+        no_mmap = [bool]$NoMmap
         samples_tps = @($samples | ForEach-Object { [math]::Round($_, 2) })
         median_tps = [math]::Round($median, 2)
         dedicated_gpu_memory_mib = $dedicatedMemoryMiB
