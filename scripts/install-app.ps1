@@ -7,7 +7,10 @@ $ErrorActionPreference = 'Stop'
 
 $repoRoot = Split-Path $PSScriptRoot -Parent
 $certificatePath = Join-Path $repoRoot 'artifacts\MoE.ModelManager-devcert.cer'
-$packagePath = Join-Path $repoRoot 'artifacts\MoE.ModelManager_1.7.2.0_x64.msix'
+$manifestPath = Join-Path $repoRoot 'src\MoE.ModelManager\Package.appxmanifest'
+$manifest = [xml](Get-Content -LiteralPath $manifestPath -Raw)
+$packageVersion = [string]$manifest.Package.Identity.Version
+$packagePath = Join-Path $repoRoot "artifacts\MoE.ModelManager_${packageVersion}_x64.msix"
 
 if (-not (Test-Path -LiteralPath $certificatePath)) {
     throw "Development certificate was not found at $certificatePath. Run scripts\build-installer.ps1 first."

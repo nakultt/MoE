@@ -9,9 +9,15 @@ $projectPath = Join-Path $repoRoot 'src\MoE.ModelManager\MoE.ModelManager.csproj
 $manifestPath = Join-Path $repoRoot 'src\MoE.ModelManager\Package.appxmanifest'
 $artifactDirectory = Join-Path $repoRoot 'artifacts'
 $publishDirectory = Join-Path $artifactDirectory 'publish'
-$packagePath = Join-Path $artifactDirectory 'MoE.ModelManager_1.7.2.0_x64.msix'
+$manifest = [xml](Get-Content -LiteralPath $manifestPath -Raw)
+$packageVersion = [string]$manifest.Package.Identity.Version
+if ($packageVersion -notmatch '^\d+\.\d+\.\d+\.\d+$') {
+    throw "Invalid MSIX version in Package.appxmanifest: $packageVersion"
+}
+$packagePath = Join-Path $artifactDirectory "MoE.ModelManager_${packageVersion}_x64.msix"
 $certificatePath = Join-Path $repoRoot 'devcert.pfx'
 $publicCertificatePath = Join-Path $repoRoot 'devcert.cer'
+$certificatePassword = if ($env:MOE_CERTIFICATE_PASSWORD) { $env:MOE_CERTIFICATE_PASSWORD } else { 'password' }
 $winAppPath = Join-Path $env:USERPROFILE '.nuget\packages\microsoft.windows.sdk.buildtools.winapp\0.5.0\tools\win-x64\winapp.exe'
 
 if (-not (Test-Path -LiteralPath $winAppPath)) {
@@ -32,6 +38,15 @@ if ($RegenerateCertificate -or -not (Test-Path -LiteralPath $certificatePath)) {
         --valid-days 1095 `
         --if-exists Overwrite
 }
+if (-not (Test-Path -LiteralPath $publicCertificatePath)) {
+    $certificate = [Security.Cryptography.X509Certificates.X509Certificate2]::new(
+        $certificatePath,
+        $certificatePassword,
+        [Security.Cryptography.X509Certificates.X509KeyStorageFlags]::EphemeralKeySet)
+    [IO.File]::WriteAllBytes(
+        $publicCertificatePath,
+        $certificate.Export([Security.Cryptography.X509Certificates.X509ContentType]::Cert))
+}
 
 $resolvedArtifactDirectory = (Resolve-Path -LiteralPath $artifactDirectory).Path
 if (Test-Path -LiteralPath $packagePath) {
@@ -48,7 +63,7 @@ if (Test-Path -LiteralPath $packagePath) {
     --exe 'MoE.ModelManager.exe' `
     --output $packagePath `
     --cert $certificatePath `
-    --cert-password 'password'
+    --cert-password $certificatePassword
 
 Copy-Item -LiteralPath $publicCertificatePath -Destination (Join-Path $artifactDirectory 'MoE.ModelManager-devcert.cer') -Force
 

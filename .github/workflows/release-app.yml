@@ -1,0 +1,126 @@
+name: Build and release Windows app
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/MoE.ModelManager/**"
+      - "src/MoE.ModelManager.Tests/**"
+      - "scripts/build-installer.ps1"
+      - "scripts/install-runtime.ps1"
+      - ".github/workflows/release-app.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-windows-app
+  cancel-in-progress: false
+
+jobs:
+  build-release:
+    runs-on: windows-2025
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+      MOE_CERTIFICATE_PASSWORD: ${{ secrets.MOE_SIGNING_CERTIFICATE_PASSWORD }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Set unique package and release version
+        shell: pwsh
+        run: |
+          $manifestPath = 'src/MoE.ModelManager/Package.appxmanifest'
+          $manifest = [xml](Get-Content -LiteralPath $manifestPath -Raw)
+          $baseVersion = [Version]$manifest.Package.Identity.Version
+          if ($env:GITHUB_RUN_NUMBER -gt 65535) {
+            throw 'GitHub run number exceeds the MSIX version-field limit.'
+          }
+          $version = "{0}.{1}.{2}.{3}" -f $baseVersion.Major, $baseVersion.Minor, $baseVersion.Build, $env:GITHUB_RUN_NUMBER
+          $manifest.Package.Identity.Version = $version
+          $manifest.Save((Resolve-Path $manifestPath))
+          "PACKAGE_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "RELEASE_TAG=v$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "PACKAGE_PATH=$env:GITHUB_WORKSPACE\artifacts\MoE.ModelManager_${version}_x64.msix" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Restore private signing certificate
+        shell: pwsh
+        env:
+          CERTIFICATE_PFX_BASE64: ${{ secrets.MOE_SIGNING_CERTIFICATE_PFX }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:CERTIFICATE_PFX_BASE64)) {
+            throw 'MOE_SIGNING_CERTIFICATE_PFX is not configured.'
+          }
+          [IO.File]::WriteAllBytes(
+            "$env:GITHUB_WORKSPACE\devcert.pfx",
+            [Convert]::FromBase64String($env:CERTIFICATE_PFX_BASE64))
+
+      - name: Restore pinned native runtimes
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path bootstrap | Out-Null
+          gh release download v1.7.2 --repo "${{ github.repository }}" --pattern '*.msix' --dir bootstrap
+          $bootstrapPackage = Get-ChildItem bootstrap -Filter '*.msix' | Select-Object -First 1
+          if ($null -eq $bootstrapPackage) { throw 'Bootstrap MSIX was not downloaded.' }
+          Copy-Item $bootstrapPackage.FullName bootstrap\package.zip
+          Expand-Archive bootstrap\package.zip bootstrap\expanded -Force
+          New-Item -ItemType Directory -Force -Path runtime\llama.cpp-b10359-cuda12.4,runtime\stable-diffusion.cpp | Out-Null
+          Copy-Item bootstrap\expanded\Runtime\* runtime\llama.cpp-b10359-cuda12.4 -Recurse -Force
+          Copy-Item bootstrap\expanded\ImageRuntime\* runtime\stable-diffusion.cpp -Recurse -Force
+
+      - name: Restore, build, and test
+        shell: pwsh
+        run: |
+          dotnet restore MoE.slnx
+          dotnet build MoE.slnx -c Release --no-restore
+          dotnet test src\MoE.ModelManager.Tests\MoE.ModelManager.Tests.csproj -c Release --no-build
+
+      - name: Build signed MSIX
+        shell: pwsh
+        run: .\scripts\build-installer.ps1
+
+      - name: Create checksums
+        shell: pwsh
+        run: |
+          $certificatePath = "$env:GITHUB_WORKSPACE\artifacts\MoE.ModelManager-devcert.cer"
+          $checksumPath = "$env:GITHUB_WORKSPACE\artifacts\MoE.ModelManager_${env:PACKAGE_VERSION}_SHA256SUMS.txt"
+          @(
+            "$( (Get-FileHash $env:PACKAGE_PATH -Algorithm SHA256).Hash )  $([IO.Path]::GetFileName($env:PACKAGE_PATH))"
+            "$( (Get-FileHash $certificatePath -Algorithm SHA256).Hash )  $([IO.Path]::GetFileName($certificatePath))"
+          ) | Set-Content -LiteralPath $checksumPath -Encoding ascii
+          "CHECKSUM_PATH=$checksumPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        run: |
+          $certificatePath = "$env:GITHUB_WORKSPACE\artifacts\MoE.ModelManager-devcert.cer"
+          $notes = @"
+          Automated signed Windows x64 build from commit $env:GITHUB_SHA.
+
+          - Build and tests completed on GitHub Actions.
+          - Import the included public certificate into Local Computer > Trusted People before installing if it is not already trusted.
+          - Model weights are not included; use the paths documented in the repository README.
+          "@
+          if (gh release view $env:RELEASE_TAG --repo "${{ github.repository }}" *> $null) {
+            gh release upload $env:RELEASE_TAG --repo "${{ github.repository }}" --clobber `
+              "$env:PACKAGE_PATH#MoE Model Manager x64 MSIX" `
+              "$certificatePath#Development signing certificate" `
+              "$env:CHECKSUM_PATH#SHA-256 checksums"
+          }
+          else {
+            gh release create $env:RELEASE_TAG --repo "${{ github.repository }}" --target $env:GITHUB_SHA `
+              --title "MoE Model Manager $env:PACKAGE_VERSION" --notes $notes `
+              "$env:PACKAGE_PATH#MoE Model Manager x64 MSIX" `
+              "$certificatePath#Development signing certificate" `
+              "$env:CHECKSUM_PATH#SHA-256 checksums"
+          }

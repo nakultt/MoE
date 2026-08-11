@@ -129,6 +129,8 @@ dotnet test .\src\MoE.ModelManager.Tests\MoE.ModelManager.Tests.csproj -c Debug 
 .\scripts\install-app.ps1
 ```
 
+Commits pushed to `main` that change the WinUI project, its tests, installer/runtime scripts, or the release workflow automatically run [release-app.yml](.github/workflows/release-app.yml). The workflow restores the pinned native runtimes, builds and tests the app, signs a uniquely versioned x64 MSIX, calculates SHA-256 checksums, and publishes the MSIX, public certificate, and checksum file to a GitHub Release. The private signing key is stored only in the `MOE_SIGNING_CERTIFICATE_PFX` repository secret; its password is stored in `MOE_SIGNING_CERTIFICATE_PASSWORD`.
+
 ---
 
 ### Local speech configuration
