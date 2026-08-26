@@ -5,7 +5,7 @@ Native WinUI 3 desktop control center for local Nemotron 3 Nano Omni, Qwen3.6, G
 ## What is included
 
 - Model selection, load, eject, and live runtime status.
-- Streaming local chat with native Markdown rendering and image, audio, or video attachments. Nemotron Omni can switch reasoning on or off per request, and **New chat** clears prior context without ejecting the model.
+- Streaming local chat with native Markdown rendering and image, audio, or video attachments. All three chat models can switch reasoning on or off per request with a thinking-token budget, a context-window bar shows how much of the window the conversation has consumed, and **New chat** clears prior context without ejecting the model.
 - FLUX.2 Klein image generation with size selection, in-app preview, automatic local saving, and cancel support.
 - FastWan2.2 three-step video generation with Turbo, Balanced, and Quality presets, in-app MP4 playback, local saving, and stop/eject support.
 - Native C# speech-to-text with Parakeet TDT 0.6B v3 INT8 and text-to-speech with Kokoro 82M, including editable transcription, voice/speed selection, WAV playback, and local saving.
@@ -158,11 +158,11 @@ The pinned FastVideo checkout receives [an 8 GB compatibility patch](patches/fas
 
 ## Measured configurations on this machine
 
-| Model | Context | CPU MoE layers | Speculative decoding | Sustained result |
-| --- | ---: | ---: | --- | ---: |
-| Qwen3.6 35B A3B Q4_K_M | 8,192 | 30 | Off | 41.18 TPS |
-| Gemma 4 26B A4B QAT UD-Q4_K_XL | 8,192 | 20 | Q8 MTP, draft length 2 | 51.51 TPS |
-| Nemotron 3 Nano Omni 30B A3B APEX-I-Nano | 8,192 | 40 | Off (no compatible draft tensors) | 38.83 TPS |
+| Model | Context | KV cache | CPU MoE layers | Speculative decoding | Sustained result |
+| --- | ---: | --- | ---: | --- | ---: |
+| Qwen3.6 35B A3B Q4_K_M | 8,192 | F16 | 30 | Off | 41.18 TPS |
+| Gemma 4 26B A4B QAT UD-Q4_K_XL | 65,536 | Q4 | 20 | Q8 MTP, draft length 2 | 50.54 TPS |
+| Nemotron 3 Nano Omni 30B A3B APEX-I-Nano | 8,192 | Q8 | 40 | Off (no compatible draft tensors) | 38.83 TPS |
 
 Gemma is one main model. Its small Q8 MTP GGUF is a speculative-decoding helper, not a second chat model. Both files are loaded together when Gemma is selected.
 
@@ -217,7 +217,24 @@ Gemma was reverified with the same deterministic long-form prompt and three 512-
 | Q8 MTP, length 3 | 20 | 38.56 TPS |
 | Q8 MTP, length 4 | 20 | 34.23 TPS |
 
-The winning Q8 length-2 configuration was also screened with 18–22 CPU MoE layers. Twenty layers remained fastest; moving in either direction reduced TPS or left too little VRAM headroom. Re-run an individual combination with `benchmarks\benchmark-gemma-config.ps1 -CpuMoeLayers <0-30> -Draft <none|q4|q8> -DraftTokens <1-8>`.
+The winning Q8 length-2 configuration was also screened with 18–22 CPU MoE layers. Twenty layers remained fastest; moving in either direction reduced TPS or left too little VRAM headroom. Re-run an individual combination with `benchmarks\benchmark-gemma-config.ps1 -CpuMoeLayers <0-30> -Draft <none|q4|q8> -DraftTokens <1-8> -Context <2048-65536> -CacheType <f16|q8_0|q4_0>`.
+
+#### Gemma context window
+
+The draft-length table above used the original 8K/Q8-KV profile. Gemma's context was subsequently raised to 65,536 tokens with a Q4 KV cache, which is the shipped default.
+
+Gemma 4 interleaves five sliding-window attention layers (1,024-token window) with one global-attention layer, and the five global layers use only two KV heads. The per-token KV cost is therefore small and largely independent of context length, so 8K to 64K costs roughly 660 MiB of VRAM and no measurable throughput.
+
+| Gemma context configuration | Median generation speed | GPU memory |
+| --- | ---: | ---: |
+| 8K, Q8 KV (previous default) | 49.46 TPS | 6,900 MiB |
+| **64K, Q4 KV (current default)** | **50.54 TPS** | **7,564 MiB** |
+
+Both rows were measured with `-UltimatePerformance`, three 512-token generations, 20 CPU MoE layers, and Q8 MTP at draft length 2. The two medians are within run-to-run spread, so the larger window is effectively free rather than faster.
+
+The ceiling is 65,536 and it is not a VRAM limit. Above that the Q8 MTP drafter fails to load with `invalid vector subscript`, at Q4 KV as well as Q8, because 64K is the drafter's own window. Dropping the drafter allows 131,072 tokens but costs roughly 20% throughput, so the app keeps MTP and stops at 64K.
+
+Q4 KV quantizes the K cache as well as the V cache, so long-context recall may degrade relative to the previous Q8 profile. Throughput was also measured with a near-empty cache; a genuinely full 64K window is slower.
 
 ---
 
@@ -229,7 +246,7 @@ The configured [`APEX-I-Nano` GGUF](https://huggingface.co/mudler/Nemotron-3-Nan
 
 This is not NVIDIA's reference/native-video deployment. NVIDIA specifies at least an RTX 5090 32 GB for the official 21 GB NVFP4 checkpoint, 48 GB for FP8, or an H100 80 GB for BF16. The reference vLLM pipeline samples video at up to 1–2 FPS / 128–256 frames and can process embedded audio. On the 8 GB/32 GB profile, the desktop app uniformly samples four 384×384 frames across the complete clip and submits them through CRADIO as an ordered image sequence, while the first embedded audio track is submitted separately through Parakeet. This avoids llama.cpp's long-video context/RAM failure while preserving local video+speech Q&A, but temporal accuracy may differ from the official vLLM/TensorRT pipeline.
 
-Use the **Reasoning mode** switch in the Chat tab. Turning it off sends `chat_template_kwargs.enable_thinking=false`; turning it on sends `true`. The same field is available to external API clients. Attach one supported file per desktop message:
+Use the **Reasoning mode** switch in the Chat tab. Turning it off sends `chat_template_kwargs.enable_thinking=false`; turning it on sends `true`. The switch applies to all three chat models, not just Nemotron. The same field is available to external API clients. Attach one supported file per desktop message:
 
 | Input | Desktop limit | Formats |
 | --- | ---: | --- |
@@ -244,6 +261,36 @@ For direct llama.cpp use without the desktop app:
 ```powershell
 .\scripts\start-nemotron-omni.ps1
 ```
+
+---
+
+## Reasoning and context use
+
+All three chat models expose a thinking channel, so `supportsReasoning` is set for each of them in `Configuration/models.json` and the **Reasoning mode** switch is live for all three.
+
+### Every request defaults to non-thinking
+
+The model templates disagree about their own default: Qwen3.6 and Nemotron Omni think unless told otherwise, while Gemma 4 defaults to a direct answer. To make behaviour uniform, `OpenAiProxyService` injects `chat_template_kwargs.enable_thinking=false` into any `/v1/chat/completions` request that does not set the field. An explicit `true` or `false` from a client is always honoured, so opting in stays a one-field change.
+
+The desktop **Reasoning mode** switch is also off by default.
+
+### Thinking budget
+
+`llama-server` is started with `-rea auto` for reasoning-capable models so the template, and therefore the per-request `enable_thinking` field, decides whether thoughts are produced. Thoughts are returned in `message.reasoning_content` and are rendered in a collapsed **Thinking** expander in the desktop chat rather than mixed into the answer.
+
+An unbounded thinking channel can consume the entire token limit and return empty visible content. The Chat tab therefore exposes a thinking-budget slider (0 to 4,096 tokens, default 512) that sends `reasoning_budget_tokens`. Measured on Gemma at a 400-token limit:
+
+| Request | Reasoning characters | Answer characters |
+| --- | ---: | ---: |
+| `enable_thinking=false` | 0 | 1,323 |
+| `enable_thinking=true`, no budget | 1,131 | **0** |
+| `enable_thinking=true`, budget 64 | 156 | 1,137 |
+
+Setting the slider to 0 sends no budget and lets the model think without limit.
+
+### Context window bar
+
+The Chat tab shows a progress bar and a `used / limit` caption for the loaded model's context window. The counts come from the `usage` object in the final streaming chunk, which the proxy already requests through `stream_options.include_usage`, so the bar reflects the tokens the backend actually charged rather than a client-side estimate. It resets on **New chat** and when the selected model changes.
 
 ---
 
@@ -267,7 +314,7 @@ This section provides complete, production-ready documentation of the OpenAI-com
 | Model ID | Type | Runtime | Description |
 | --- | --- | --- | --- |
 | `qwen3.6-35b-a3b` | Text (LLM) | llama.cpp (CUDA) | Qwen3.6 35B A3B, Q4_K_M, 41.18 TPS, vision-capable |
-| `gemma-4-26b-a4b` | Text (LLM) | llama.cpp (CUDA) | Gemma 4 26B A4B, QAT UD-Q4_K_XL with Q8 MTP, 51.51 TPS, vision-capable |
+| `gemma-4-26b-a4b` | Text (LLM) | llama.cpp (CUDA) | Gemma 4 26B A4B, QAT UD-Q4_K_XL with Q8 MTP, 64K context, 50.54 TPS, vision-capable |
 | `nemotron-3-nano-omni-30b-a3b` | Text output, omni input | llama.cpp (CUDA/CPU) | Nemotron 3 Nano Omni community GGUF; text, image, audio, and video understanding with optional reasoning |
 | `flux.2-klein-4b` | Image | stable-diffusion.cpp (CUDA) | FLUX.2 Klein 4B Distilled, Q4, four-step generation |
 | `fastwan2.2-ti2v-5b` | Video | FastVideo (WSL/CUDA) | FastWan2.2 TI2V 5B, FP8, three-step generation |
@@ -482,7 +529,8 @@ Use `input_audio` or `input_video`; `data` accepts either raw base64 or a data U
 | `stream` | `boolean` | No | `false` | Enable SSE streaming |
 | `stream_options` | `object` | No | — | Set `{"include_usage": true}` for usage in final SSE chunk (auto-injected by proxy) |
 | `temperature` | `number` | No | `0.2` | Sampling temperature |
-| `chat_template_kwargs.enable_thinking` | `boolean` | No | `true` for Nemotron | Enables or disables Nemotron's reasoning trace; ignored by models without this capability |
+| `chat_template_kwargs.enable_thinking` | `boolean` | No | `false` | Enables or disables the reasoning trace on any of the three chat models; the proxy injects `false` when the field is absent |
+| `reasoning_budget_tokens` | `integer` | No | `-1` (unbounded) | Caps the thinking channel at N tokens so the visible answer is still produced; also accepted as `thinking_budget_tokens` |
 
 ##### Multimodal content array items
 
@@ -1059,7 +1107,7 @@ graph TB
                 end
             end
 
-            ATT["Self-Attention Layers<br/>Flash Attention · Q8_0 KV Cache<br/>8,192 Context Window"]
+            ATT["Self-Attention Layers<br/>Flash Attention · Q4_0 KV Cache<br/>65,536 Context Window"]
             NORM["RMS Normalization"]
             LMH["Language Model Head"]
         end
@@ -1070,7 +1118,7 @@ graph TB
         end
 
         subgraph Output["Output"]
-            DEC["Token Decoder<br/>Draft Length 2 · 51.51 TPS"]
+            DEC["Token Decoder<br/>Draft Length 2 · 50.54 TPS"]
         end
 
         TOK --> EMB
@@ -1101,16 +1149,16 @@ graph TB
 | Parameter | Value |
 | --- | --- |
 | Quantization | QAT UD-Q4_K_XL |
-| Context size | 8,192 tokens |
+| Context size | 65,536 tokens |
 | GPU layers | All 999 (limited by VRAM) |
 | CPU MoE layers | 20 |
-| KV cache type | Q8_0 (key and value) |
+| KV cache type | Q4_0 (key and value) |
 | CPU threads | 16 |
 | Vision projector | F16, CPU-resident |
 | MTP draft model | Q8_0 GGUF, GPU-resident |
 | MTP draft length | 2 tokens |
 | Flash attention | On |
-| Measured TPS | 51.51 (sustained) |
+| Measured TPS | 50.54 (sustained) |
 
 ---
 
@@ -1156,7 +1204,7 @@ The safe all-CPU-expert profile left most VRAM unused. Screening the same 8K/Q8 
 
 A longer three-run confirmation at 40 layers produced 28.21, 39.74, and 38.83 TPS (38.83 median). The equivalent 52-layer confirmation produced 22.51, 30.81, and 31.11 TPS (30.81 median). The optimized profile therefore improves warm sustained generation by about 26% while retaining roughly 0.7–1.0 GB of dedicated-VRAM headroom. Task Manager may not show a perfectly flat 100% GPU graph because CPU expert routing and autoregressive synchronization alternate with CUDA work.
 
-Moving two additional expert layers to the GPU (`-ncmoe 38`) filled roughly 7.78 GB of dedicated VRAM and reduced screening speed to 24.55 TPS. Lower-bit KV caches, a 2K context, 14 or 28 threads, and the Ultimate Performance power plan were also tested; none beat the 40-layer profile. Disabling mmap briefly reached 40.47 TPS, but a five-run 512-token test declined from 40.38 to 34.77 TPS and had a 36.92 TPS median, so it is intentionally not enabled. Unlike Gemma, this Nemotron GGUF has no compatible MTP draft tensors, so Gemma's 51.51 TPS speculative-decoding advantage cannot be reproduced. A repeatable 50+ TPS target is therefore not realistic for this 19.55 GiB model-plus-projector stack on an 8 GB RTX 4060; the verified warm target is approximately 39 TPS.
+Moving two additional expert layers to the GPU (`-ncmoe 38`) filled roughly 7.78 GB of dedicated VRAM and reduced screening speed to 24.55 TPS. Lower-bit KV caches, a 2K context, 14 or 28 threads, and the Ultimate Performance power plan were also tested; none beat the 40-layer profile. Disabling mmap briefly reached 40.47 TPS, but a five-run 512-token test declined from 40.38 to 34.77 TPS and had a 36.92 TPS median, so it is intentionally not enabled. Unlike Gemma, this Nemotron GGUF has no compatible MTP draft tensors, so Gemma's 50.54 TPS speculative-decoding advantage cannot be reproduced. A repeatable 50+ TPS target is therefore not realistic for this 19.55 GiB model-plus-projector stack on an 8 GB RTX 4060; the verified warm target is approximately 39 TPS.
 
 The end-to-end local verification passed all five paths with the combined projector: direct text, reasoning text, image understanding, audio transcription, and video understanding. Desktop video input is converted locally into four uniformly sampled frames; FFmpeg also extracts its first audio stream and submits it as a companion audio item, preserving visible progression and spoken information without a cloud service.
 
@@ -1509,7 +1557,7 @@ If an LLM GGUF moves, edit its absolute path in [models.json](src/MoE.ModelManag
 
 The desktop app is the normal launcher. These scripts are available as a direct llama.cpp fallback and expose both llama.cpp's built-in Web UI and its OpenAI-compatible API.
 
-Gemma with the verified 51.51 TPS Q8 MTP configuration:
+Gemma with the verified 64K-context Q8 MTP configuration:
 
 ```powershell
 Set-Location E:\Github\MoE
@@ -1522,7 +1570,7 @@ Qwen:
 .\scripts\start-qwen3.6.ps1
 ```
 
-Both default to `http://127.0.0.1:8081`. Close the MoE Model Manager or choose another `-Port` before using a fallback launcher. Gemma accepts optional `-Context`, `-CpuMoeLayers`, and `-DraftTokens` parameters, but its defaults are the measured winning configuration.
+Both default to `http://127.0.0.1:8081`. Close the MoE Model Manager or choose another `-Port` before using a fallback launcher. Gemma accepts optional `-Context`, `-CpuMoeLayers`, and `-DraftTokens` parameters, but its defaults match the app's shipped configuration: a 65,536-token context with a Q4 KV cache.
 
 ## Use the OpenAI-compatible API
 

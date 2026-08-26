@@ -9,6 +9,20 @@ namespace MoE.ModelManager.ViewModels;
 
 public sealed partial class MainViewModel : ObservableObject, IDisposable
 {
+    /// <summary>
+    /// The default thinking-token budget applied to reasoning-capable models.
+    /// </summary>
+    /// <remarks>
+    /// An unbounded thinking channel can consume the entire response, leaving empty
+    /// visible content, so a budget is applied by default rather than opted into.
+    /// </remarks>
+    public const double DefaultThinkingBudgetTokens = 512d;
+
+    /// <summary>
+    /// The highest selectable thinking-token budget.
+    /// </summary>
+    public const double MaximumThinkingBudgetTokens = 4096d;
+
     private readonly IApiProxyService _apiProxyService;
     private readonly IAppResources _resources;
     private readonly IModelCatalogService _modelCatalogService;
@@ -165,7 +179,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial string SelectedChatAttachmentType { get; set; } = string.Empty;
 
     [ObservableProperty]
-    public partial bool IsReasoningEnabled { get; set; } = true;
+    public partial bool IsReasoningEnabled { get; set; }
+
+    [ObservableProperty]
+    public partial double ThinkingBudgetTokens { get; set; } = DefaultThinkingBudgetTokens;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ContextUsageText))]
+    [NotifyPropertyChangedFor(nameof(ContextUsagePercent))]
+    public partial int ContextUsedTokens { get; set; }
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SendMessageCommand))]
@@ -249,6 +271,39 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public bool CanAttachChatMedia => SelectedModel?.HasMultimodalInput == true;
 
     public bool CanConfigureReasoning => SelectedModel?.SupportsReasoning == true;
+
+    /// <summary>
+    /// Gets the loaded model's context window, in tokens.
+    /// </summary>
+    public int ContextLimitTokens => SelectedModel?.ContextSize ?? 0;
+
+    /// <summary>
+    /// Gets the share of the context window consumed by the conversation, from 0 to 100.
+    /// </summary>
+    public double ContextUsagePercent => ContextLimitTokens <= 0
+        ? 0d
+        : Math.Min(100d, ContextUsedTokens * 100d / ContextLimitTokens);
+
+    /// <summary>
+    /// Gets the caption shown beside the context usage bar.
+    /// </summary>
+    public string ContextUsageText
+    {
+        get
+        {
+            if (ContextLimitTokens <= 0)
+            {
+                return string.Empty;
+            }
+
+            return string.Format(
+                CultureInfo.CurrentCulture,
+                _resources.GetString("ContextUsageFormat"),
+                ContextUsedTokens,
+                ContextLimitTokens,
+                ContextUsagePercent);
+        }
+    }
 
     public IReadOnlyList<string> ImageSizes { get; } = ["512x512", "768x768", "1024x1024"];
 
@@ -461,6 +516,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         UserPrompt = string.Empty;
         ClearChatAttachment();
         Messages.Clear();
+        ContextUsedTokens = 0;
     }
 
     private bool CanLoadModel()
@@ -570,18 +626,34 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         try
         {
-            await foreach (string chunk in _chatService.StreamResponseAsync(
+            await foreach (ChatStreamDelta delta in _chatService.StreamResponseAsync(
                 model.Id,
                 requestMessages,
                 model.SupportsReasoning ? IsReasoningEnabled : null,
+                (int)ThinkingBudgetTokens,
                 _generationCancellation.Token))
             {
-                assistantMessage.Content += chunk;
+                if (!string.IsNullOrEmpty(delta.Reasoning))
+                {
+                    assistantMessage.Reasoning += delta.Reasoning;
+                }
+
+                if (!string.IsNullOrEmpty(delta.Content))
+                {
+                    assistantMessage.Content += delta.Content;
+                }
+
+                if (delta.HasUsage)
+                {
+                    ContextUsedTokens = delta.PromptTokens + delta.CompletionTokens;
+                }
             }
 
             if (string.IsNullOrWhiteSpace(assistantMessage.Content))
             {
-                assistantMessage.Content = _resources.GetString("ErrorChatEmptyResponse");
+                assistantMessage.Content = assistantMessage.HasReasoning
+                    ? _resources.GetString("ErrorChatThinkingOnly")
+                    : _resources.GetString("ErrorChatEmptyResponse");
             }
         }
         catch (OperationCanceledException)
@@ -1011,6 +1083,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(SelectedMeasuredSpeed));
         OnPropertyChanged(nameof(CanAttachChatMedia));
         OnPropertyChanged(nameof(CanConfigureReasoning));
+        OnPropertyChanged(nameof(ContextLimitTokens));
+        OnPropertyChanged(nameof(ContextUsagePercent));
+        OnPropertyChanged(nameof(ContextUsageText));
         if (value?.HasMultimodalInput != true)
         {
             ClearChatAttachment();

@@ -18,10 +18,11 @@ internal sealed class OpenAiChatService : IOpenAiChatService
         _httpClientFactory = httpClientFactory;
     }
 
-    public async IAsyncEnumerable<string> StreamResponseAsync(
+    public async IAsyncEnumerable<ChatStreamDelta> StreamResponseAsync(
         string modelId,
         IReadOnlyList<ChatMessage> messages,
         bool? enableThinking,
+        int thinkingBudgetTokens,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(modelId);
@@ -38,6 +39,10 @@ internal sealed class OpenAiChatService : IOpenAiChatService
         if (enableThinking.HasValue)
         {
             payload["chat_template_kwargs"] = new { enable_thinking = enableThinking.Value };
+            if (enableThinking.Value && thinkingBudgetTokens > 0)
+            {
+                payload["reasoning_budget_tokens"] = thinkingBudgetTokens;
+            }
         }
 
         using HttpRequestMessage request = new(
@@ -65,10 +70,10 @@ internal sealed class OpenAiChatService : IOpenAiChatService
                 continue;
             }
 
-            string? content = ReadContentDelta(line[6..]);
-            if (!string.IsNullOrEmpty(content))
+            ChatStreamDelta? delta = ReadDelta(line[6..]);
+            if (delta is not null)
             {
-                yield return content;
+                yield return delta.Value;
             }
         }
     }
@@ -95,27 +100,59 @@ internal sealed class OpenAiChatService : IOpenAiChatService
             message.VideoFrameDataUrls);
     }
 
-    private static string? ReadContentDelta(string json)
+    private static ChatStreamDelta? ReadDelta(string json)
     {
         try
         {
             using JsonDocument document = JsonDocument.Parse(json);
-            if (!document.RootElement.TryGetProperty("choices", out JsonElement choices)
-                || choices.ValueKind != JsonValueKind.Array
-                || choices.GetArrayLength() == 0)
+            JsonElement root = document.RootElement;
+            string? content = null;
+            string? reasoning = null;
+            if (root.TryGetProperty("choices", out JsonElement choices)
+                && choices.ValueKind == JsonValueKind.Array
+                && choices.GetArrayLength() > 0
+                && choices[0].TryGetProperty("delta", out JsonElement delta))
             {
-                return null;
+                content = ReadDeltaText(delta, "content");
+                reasoning = ReadDeltaText(delta, "reasoning_content");
             }
 
-            JsonElement choice = choices[0];
-            return choice.TryGetProperty("delta", out JsonElement delta)
-                && delta.TryGetProperty("content", out JsonElement content)
-                    ? content.GetString()
-                    : null;
+            int promptTokens = 0;
+            int completionTokens = 0;
+            if (root.TryGetProperty("usage", out JsonElement usage)
+                && usage.ValueKind == JsonValueKind.Object)
+            {
+                promptTokens = ReadTokenCount(usage, "prompt_tokens");
+                completionTokens = ReadTokenCount(usage, "completion_tokens");
+            }
+
+            return string.IsNullOrEmpty(content)
+                && string.IsNullOrEmpty(reasoning)
+                && promptTokens == 0
+                && completionTokens == 0
+                    ? null
+                    : new ChatStreamDelta(content, reasoning, promptTokens, completionTokens);
         }
         catch (JsonException)
         {
             return null;
         }
+    }
+
+    private static string? ReadDeltaText(JsonElement delta, string propertyName)
+    {
+        return delta.TryGetProperty(propertyName, out JsonElement value)
+            && value.ValueKind == JsonValueKind.String
+                ? value.GetString()
+                : null;
+    }
+
+    private static int ReadTokenCount(JsonElement usage, string propertyName)
+    {
+        return usage.TryGetProperty(propertyName, out JsonElement value)
+            && value.ValueKind == JsonValueKind.Number
+            && value.TryGetInt32(out int tokens)
+                ? tokens
+                : 0;
     }
 }

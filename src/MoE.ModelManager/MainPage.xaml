@@ -338,6 +338,17 @@
                   <TextBlock
                       Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
                       Text="{x:Bind AttachmentSummary, Mode=OneTime}" />
+                  <Expander
+                      x:Uid="ThinkingTraceExpander"
+                      HorizontalAlignment="Stretch"
+                      HorizontalContentAlignment="Left"
+                      Visibility="{x:Bind HasReasoning, Mode=OneWay}">
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        IsTextSelectionEnabled="True"
+                        Text="{x:Bind Reasoning, Mode=OneWay}"
+                        TextWrapping="Wrap" />
+                  </Expander>
                   <controls:MarkdownRichTextBlock
                       Markdown="{x:Bind Content, Mode=OneWay}"
                       RenderMarkdown="{x:Bind IsAssistant, Mode=OneTime}" />
@@ -375,12 +386,48 @@
                   Click="OnRemoveChatMediaClicked" />
             </Grid>
           </Border>
+          <Border
+              Padding="12,8"
+              Background="{ThemeResource LayerFillColorDefaultBrush}"
+              CornerRadius="8">
+            <StackPanel Spacing="6">
+              <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Uid="ContextUsageHeading" FontWeight="SemiBold" />
+                <TextBlock
+                    Grid.Column="1"
+                    AutomationProperties.AutomationId="ContextUsageText"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="{x:Bind ViewModel.ContextUsageText, Mode=OneWay}" />
+              </Grid>
+              <ProgressBar
+                  AutomationProperties.AutomationId="ContextUsageBar"
+                  Maximum="100"
+                  Minimum="0"
+                  Value="{x:Bind ViewModel.ContextUsagePercent, Mode=OneWay}" />
+            </StackPanel>
+          </Border>
           <ToggleSwitch
               Header="Reasoning mode"
+              AutomationProperties.AutomationId="ReasoningToggle"
               IsEnabled="{x:Bind ViewModel.CanConfigureReasoning, Mode=OneWay}"
               IsOn="{x:Bind ViewModel.IsReasoningEnabled, Mode=TwoWay}"
               OffContent="Direct answer"
               OnContent="Think before answering" />
+          <Slider
+              x:Uid="ThinkingBudgetSlider"
+              AutomationProperties.AutomationId="ThinkingBudgetSlider"
+              IsEnabled="{x:Bind ViewModel.CanConfigureReasoning, Mode=OneWay}"
+              Maximum="4096"
+              Minimum="0"
+              StepFrequency="64"
+              TickFrequency="512"
+              TickPlacement="Outside"
+              Value="{x:Bind ViewModel.ThinkingBudgetTokens, Mode=TwoWay}"
+              Visibility="{x:Bind ViewModel.IsReasoningEnabled, Mode=OneWay}" />
           <Grid ColumnSpacing="8">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*" />

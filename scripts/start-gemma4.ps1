@@ -3,8 +3,8 @@ param(
     [ValidateRange(1024, 65535)]
     [int]$Port = 8081,
 
-    [ValidateRange(2048, 32768)]
-    [int]$Context = 8192,
+    [ValidateRange(2048, 65536)]
+    [int]$Context = 65536,
 
     [ValidateRange(0, 30)]
     [int]$CpuMoeLayers = 20,
@@ -40,8 +40,8 @@ $serverArgs = @(
     '-c', "$Context",
     '-ngl', '999',
     '-ncmoe', "$CpuMoeLayers",
-    '-ctk', 'q8_0',
-    '-ctv', 'q8_0',
+    '-ctk', 'q4_0',
+    '-ctv', 'q4_0',
     '-fa', 'on',
     '-t', '16',
     '-C', '0xFFFF',
@@ -66,7 +66,7 @@ $serverArgs = @(
 Write-Host "Starting Gemma 4 26B A4B with Q8 MTP acceleration."
 Write-Host "llama.cpp Web UI: http://127.0.0.1:$Port"
 Write-Host "OpenAI-compatible API: http://127.0.0.1:$Port/v1"
-Write-Host "Configuration: context=$Context, CPU MoE layers=$CpuMoeLayers, MTP draft tokens=$DraftTokens"
+Write-Host "Configuration: context=$Context, KV cache=q4_0, CPU MoE layers=$CpuMoeLayers, MTP draft tokens=$DraftTokens"
 Write-Host 'Press Ctrl+C to stop the server.'
 
 & $server @serverArgs

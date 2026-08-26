@@ -9,8 +9,11 @@ param(
     [ValidateRange(1, 8)]
     [int]$DraftTokens = 3,
 
-    [ValidateRange(2048, 32768)]
-    [int]$Context = 8192,
+    [ValidateRange(2048, 65536)]
+    [int]$Context = 65536,
+
+    [ValidateSet('f16', 'q8_0', 'q4_0')]
+    [string]$CacheType = 'q4_0',
 
     [ValidateRange(128, 2048)]
     [int]$GenerateTokens = 512,
@@ -47,7 +50,7 @@ if ($Draft -ne 'none' -and -not (Test-Path -LiteralPath $draftModels[$Draft])) {
     throw "The $Draft MTP drafter was not found at $($draftModels[$Draft])"
 }
 
-$tag = "ncmoe-$CpuMoeLayers-draft-$Draft-n-$DraftTokens"
+$tag = "ncmoe-$CpuMoeLayers-draft-$Draft-n-$DraftTokens-ctx-$Context-$CacheType"
 $stdoutLog = Join-Path $logDir "$tag.out.log"
 $stderrLog = Join-Path $logDir "$tag.err.log"
 
@@ -56,8 +59,8 @@ $serverArgs = @(
     '-c', "$Context",
     '-ngl', '999',
     '-ncmoe', "$CpuMoeLayers",
-    '-ctk', 'q8_0',
-    '-ctv', 'q8_0',
+    '-ctk', $CacheType,
+    '-ctv', $CacheType,
     '-fa', 'on',
     '-t', '16',
     '-C', '0xFFFF',
@@ -148,6 +151,7 @@ try {
         draft = $Draft
         draft_tokens = $(if ($Draft -eq 'none') { 0 } else { $DraftTokens })
         context = $Context
+        cache_type = $CacheType
         generated_tokens_per_run = $GenerateTokens
         runs = $Runs
         samples_tps = @($samples | ForEach-Object { [math]::Round($_, 2) })

@@ -6,6 +6,7 @@
     "modelPath": "E:\\Models\\Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf",
     "visionProjectorPath": "E:\\Models\\mmproj-Qwen3.6-35B-A3B-Q8_0.gguf",
     "visionImageTokens": 1024,
+    "supportsReasoning": true,
     "contextSize": 8192,
     "cpuMoeLayers": 30,
     "cacheType": "f16",
@@ -17,17 +18,18 @@
   {
     "id": "gemma-4-26b-a4b",
     "displayName": "Gemma 4 26B A4B",
-    "description": "QAT target with Q8 MTP acceleration; measured at 51.51 TPS.",
+    "description": "QAT target with Q8 MTP acceleration; 64K context measured at 50.54 TPS.",
     "modelPath": "E:\\Models\\gemma4\\gemma-4-26B-A4B-it-qat-UD-Q4_K_XL.gguf",
     "visionProjectorPath": "E:\\Models\\gemma4\\mmproj-F16.gguf",
     "visionImageTokens": 0,
-    "contextSize": 8192,
+    "supportsReasoning": true,
+    "contextSize": 65536,
     "cpuMoeLayers": 20,
-    "cacheType": "q8_0",
+    "cacheType": "q4_0",
     "threads": 16,
     "draftModelPath": "E:\\Models\\gemma4\\MTP\\mtp-gemma-4-26B-A4B-it-Q8_0.gguf",
     "draftTokens": 2,
-    "measuredTokensPerSecond": 51.51
+    "measuredTokensPerSecond": 50.54
   },
   {
     "id": "nemotron-3-nano-omni-30b-a3b",

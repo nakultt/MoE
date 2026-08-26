@@ -257,6 +257,50 @@ internal sealed class OpenAiProxyService : IApiProxyService
         }
     }
 
+    /// <summary>
+    /// Defaults a chat request to non-thinking unless the caller opted in explicitly.
+    /// </summary>
+    /// <remarks>
+    /// Reasoning-capable templates disagree on their own default: Qwen3.6 and Nemotron
+    /// Omni think unless told otherwise, Gemma 4 does not. Every API client therefore
+    /// gets the same non-thinking default, and an explicit
+    /// <c>chat_template_kwargs.enable_thinking</c> is always honoured.
+    /// </remarks>
+    private static byte[] ApplyDefaultThinkingMode(ReadOnlySpan<byte> body)
+    {
+        try
+        {
+            JsonNode? node = JsonNode.Parse(body);
+            if (node is not JsonObject requestObject)
+            {
+                return body.ToArray();
+            }
+
+            if (requestObject["chat_template_kwargs"] is JsonObject templateArguments)
+            {
+                if (templateArguments.ContainsKey("enable_thinking"))
+                {
+                    return body.ToArray();
+                }
+
+                templateArguments["enable_thinking"] = false;
+            }
+            else
+            {
+                requestObject["chat_template_kwargs"] = new JsonObject
+                {
+                    ["enable_thinking"] = false,
+                };
+            }
+
+            return JsonSerializer.SerializeToUtf8Bytes(requestObject);
+        }
+        catch (JsonException)
+        {
+            return body.ToArray();
+        }
+    }
+
     private static byte[] NormalizeLlamaMultimodalBody(ReadOnlySpan<byte> body)
     {
         try
@@ -831,6 +875,7 @@ internal sealed class OpenAiProxyService : IApiProxyService
             && path.Equals("/v1/chat/completions", StringComparison.OrdinalIgnoreCase))
         {
             requestBody = NormalizeLlamaMultimodalBody(requestBody);
+            requestBody = ApplyDefaultThinkingMode(requestBody);
         }
 
         bool isStreaming = IsStreamingRequest(requestBody);

@@ -118,10 +118,16 @@
   <data name="StatusEjecting" xml:space="preserve"><value>Ejecting model…</value></data>
   <data name="StatusError" xml:space="preserve"><value>Runtime error</value></data>
   <data name="AuthorYou" xml:space="preserve"><value>You</value></data>
+  <data name="ContextUsageFormat" xml:space="preserve"><value>{0:N0} / {1:N0} tokens used ({2:N0}%)</value></data>
+  <data name="ContextUsageEmpty" xml:space="preserve"><value>Send a message to measure context use.</value></data>
+  <data name="ThinkingBudgetSlider.Header" xml:space="preserve"><value>Thinking budget (tokens)</value></data>
+  <data name="ThinkingTraceExpander.Header" xml:space="preserve"><value>Thinking</value></data>
+  <data name="ContextUsageHeading.Text" xml:space="preserve"><value>Context window</value></data>
   <data name="AuthorAssistant" xml:space="preserve"><value>Assistant</value></data>
   <data name="ErrorLoadFailed" xml:space="preserve"><value>Could not load the selected model.</value></data>
   <data name="ErrorChatFailed" xml:space="preserve"><value>The chat request failed.</value></data>
   <data name="ErrorChatEmptyResponse" xml:space="preserve"><value>The model generated no visible answer. Start a new chat and try a shorter media file or prompt.</value></data>
+  <data name="ErrorChatThinkingOnly" xml:space="preserve"><value>The model spent the whole response thinking. Lower the thinking budget or turn Reasoning mode off.</value></data>
   <data name="ErrorChatMediaFailed" xml:space="preserve"><value>The media file could not be attached.</value></data>
   <data name="ErrorModelDoesNotSupportMedia" xml:space="preserve"><value>The selected model does not support this media type.</value></data>
   <data name="ErrorApiFailed" xml:space="preserve"><value>The local API could not start.</value></data>

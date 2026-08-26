@@ -35,7 +35,7 @@ internal static class LlamaArgumentsBuilder
             "--port", port,
             "--alias", model.Id,
             "--jinja",
-            "-rea", "off",
+            "-rea", model.SupportsReasoning ? "auto" : "off",
             "--metrics",
         ];
 

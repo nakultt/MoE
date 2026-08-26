@@ -26,6 +26,13 @@ public sealed partial class ChatMessage : ObservableObject
     public partial string Content { get; set; } = string.Empty;
 
     /// <summary>
+    /// Gets or sets the thinking-channel text streamed before the answer.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasReasoning))]
+    public partial string Reasoning { get; set; } = string.Empty;
+
+    /// <summary>
     /// Gets or sets an optional base64 data URL attached to this message.
     /// </summary>
     [ObservableProperty]
@@ -53,6 +60,11 @@ public sealed partial class ChatMessage : ObservableObject
     /// Gets a value indicating whether this message contains assistant Markdown.
     /// </summary>
     public bool IsAssistant => string.Equals(Role, "assistant", StringComparison.Ordinal);
+
+    /// <summary>
+    /// Gets a value indicating whether a thinking trace was captured for this message.
+    /// </summary>
+    public bool HasReasoning => !string.IsNullOrWhiteSpace(Reasoning);
 
     /// <summary>
     /// Gets the visible attachment label for a multimodal message.

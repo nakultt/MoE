@@ -47,6 +47,42 @@ public sealed class LlamaArgumentsBuilderTests
     }
 
     [TestMethod]
+    public void BuildDisablesReasoningForModelsThatDoNotSupportIt()
+    {
+        ModelDefinition model = CreateModel(draftModelPath: null, draftTokens: 0);
+
+        IReadOnlyList<string> arguments = LlamaArgumentsBuilder.Build(model, 8092);
+
+        int reasoningIndex = arguments.ToList().IndexOf("-rea");
+        Assert.AreEqual("off", arguments[reasoningIndex + 1]);
+    }
+
+    [TestMethod]
+    public void BuildLetsTemplateDecideReasoningForReasoningModels()
+    {
+        ModelDefinition model = CreateModel(
+            draftModelPath: null,
+            draftTokens: 0,
+            supportsReasoning: true);
+
+        IReadOnlyList<string> arguments = LlamaArgumentsBuilder.Build(model, 8092);
+
+        int reasoningIndex = arguments.ToList().IndexOf("-rea");
+        Assert.AreEqual("auto", arguments[reasoningIndex + 1]);
+    }
+
+    [TestMethod]
+    public void BuildUsesConfiguredContextSize()
+    {
+        ModelDefinition model = CreateModel(draftModelPath: null, draftTokens: 0);
+
+        IReadOnlyList<string> arguments = LlamaArgumentsBuilder.Build(model, 8092);
+
+        int contextIndex = arguments.ToList().IndexOf("-c");
+        Assert.AreEqual("8192", arguments[contextIndex + 1]);
+    }
+
+    [TestMethod]
     public void BuildAddsCpuResidentVisionProjectorWhenConfigured()
     {
         ModelDefinition model = CreateModel(
@@ -80,7 +116,8 @@ public sealed class LlamaArgumentsBuilderTests
         string? draftModelPath,
         int draftTokens,
         string? visionProjectorPath = null,
-        int visionImageTokens = 0)
+        int visionImageTokens = 0,
+        bool supportsReasoning = false)
     {
         return new ModelDefinition
         {
@@ -90,6 +127,7 @@ public sealed class LlamaArgumentsBuilderTests
             ModelPath = @"C:\Models\model.gguf",
             VisionProjectorPath = visionProjectorPath,
             VisionImageTokens = visionImageTokens,
+            SupportsReasoning = supportsReasoning,
             ContextSize = 8192,
             CpuMoeLayers = 20,
             CacheType = "f16",
