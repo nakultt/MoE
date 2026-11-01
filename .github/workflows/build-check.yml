@@ -34,7 +34,8 @@ jobs:
 
       - name: Restore
         shell: pwsh
-        run: dotnet restore MoE.slnx
+        # Restore as Release so the ReadyToRun compiler pack that Release builds need is included.
+        run: dotnet restore MoE.slnx -p:Configuration=Release
 
       - name: Build
         shell: pwsh
