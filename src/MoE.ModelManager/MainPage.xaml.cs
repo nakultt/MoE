@@ -1,18 +1,12 @@
-using System.Collections.Specialized;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media.Imaging;
-using MoE.ModelManager.Models;
 using MoE.ModelManager.ViewModels;
-using Windows.Media.Core;
-using Windows.Storage.Pickers;
-using Windows.Storage.Streams;
 
 namespace MoE.ModelManager;
 
 /// <summary>
-/// Hosts model controls, chat, and live request telemetry.
+/// The navigation shell that hosts every workspace and keeps them alive while switching.
 /// </summary>
 public sealed partial class MainPage : Page
 {
@@ -20,16 +14,24 @@ public sealed partial class MainPage : Page
     {
         ViewModel = App.Services.GetRequiredService<MainViewModel>();
         InitializeComponent();
+        NavView.SelectedItem = ChatNavItem;
         Loaded += OnLoaded;
-        Unloaded += OnUnloaded;
-        ViewModel.Messages.CollectionChanged += OnMessagesChanged;
-        ViewModel.ImageGenerated += OnImageGenerated;
-        ViewModel.SpeechGenerated += OnSpeechGenerated;
-        ViewModel.VideoGenerated += OnVideoGenerated;
-        ViewModel.ChatAttachmentCleared += OnChatAttachmentCleared;
     }
 
     public MainViewModel ViewModel { get; }
+
+    /// <summary>
+    /// Opens or closes the navigation pane from the title bar button.
+    /// </summary>
+    internal void TogglePane()
+    {
+        NavView.IsPaneOpen = !NavView.IsPaneOpen;
+    }
+
+    private static Visibility ToVisibility(bool isVisible)
+    {
+        return isVisible ? Visibility.Visible : Visibility.Collapsed;
+    }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
@@ -37,147 +39,23 @@ public sealed partial class MainPage : Page
         {
             await ViewModel.InitializeAsync(CancellationToken.None);
         }
-        catch (Exception exception) when (exception is IOException or InvalidOperationException)
+        catch (Exception exception) when (exception is IOException or InvalidOperationException or InvalidDataException)
         {
             ViewModel.RuntimeDetail = exception.Message;
         }
     }
 
-    private void OnUnloaded(object sender, RoutedEventArgs e)
+    private void OnNavigationSelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
-        ViewModel.Messages.CollectionChanged -= OnMessagesChanged;
-        ViewModel.ImageGenerated -= OnImageGenerated;
-        ViewModel.SpeechGenerated -= OnSpeechGenerated;
-        ViewModel.VideoGenerated -= OnVideoGenerated;
-        ViewModel.ChatAttachmentCleared -= OnChatAttachmentCleared;
-        ViewModel.Dispose();
-    }
-
-    private void OnMessagesChanged(object? sender, NotifyCollectionChangedEventArgs e)
-    {
-        if (ViewModel.Messages.Count > 0)
-        {
-            ChatList.ScrollIntoView(ViewModel.Messages[^1]);
-        }
-    }
-
-    private async void OnImageGenerated(GeneratedImageResult result)
-    {
-        using InMemoryRandomAccessStream stream = new();
-        using DataWriter writer = new(stream);
-        writer.WriteBytes(result.Data);
-        await writer.StoreAsync();
-        stream.Seek(0);
-        BitmapImage bitmap = new();
-        bitmap.SetSource(stream);
-        GeneratedImage.Source = bitmap;
-        ImagePlaceholder.Visibility = Visibility.Collapsed;
-    }
-
-    private void OnVideoGenerated(GeneratedVideoResult result)
-    {
-        GeneratedVideo.Source = MediaSource.CreateFromUri(new Uri(result.OutputPath));
-        GeneratedVideo.Visibility = Visibility.Visible;
-        VideoPlaceholder.Visibility = Visibility.Collapsed;
-    }
-
-    private async void OnSelectAudioFileClicked(object sender, RoutedEventArgs e)
-    {
-        FileOpenPicker picker = new();
-        picker.FileTypeFilter.Add(".wav");
-        Window? window = ((App)Application.Current).MainWindow;
-        if (window is null)
-        {
-            return;
-        }
-
-        nint windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(window);
-        WinRT.Interop.InitializeWithWindow.Initialize(picker, windowHandle);
-        Windows.Storage.StorageFile? file = await picker.PickSingleFileAsync();
-        if (file is not null)
-        {
-            ViewModel.SelectedAudioFilePath = file.Path;
-        }
-    }
-
-    private async void OnSelectChatMediaClicked(object sender, RoutedEventArgs e)
-    {
-        ModelDefinition? model = ViewModel.SelectedModel;
-        if (model is null)
-        {
-            return;
-        }
-
-        FileOpenPicker picker = new();
-        List<string> extensions = [];
-        if (model.HasVision)
-        {
-            extensions.AddRange([".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"]);
-        }
-
-        if (model.SupportsAudio)
-        {
-            extensions.AddRange([".wav", ".mp3", ".flac"]);
-        }
-
-        if (model.SupportsVideo)
-        {
-            extensions.AddRange([".mp4", ".mkv", ".webm", ".mov", ".avi"]);
-        }
-
-        foreach (string extension in extensions)
-        {
-            picker.FileTypeFilter.Add(extension);
-        }
-
-        Window? window = ((App)Application.Current).MainWindow;
-        if (window is null)
-        {
-            return;
-        }
-
-        nint windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(window);
-        WinRT.Interop.InitializeWithWindow.Initialize(picker, windowHandle);
-        Windows.Storage.StorageFile? file = await picker.PickSingleFileAsync();
-        if (file is null)
-        {
-            return;
-        }
-
-        ViewModel.AttachChatMedia(file.Path);
-        string selectedExtension = Path.GetExtension(file.Path).ToLowerInvariant();
-        if (selectedExtension is ".png" or ".jpg" or ".jpeg" or ".webp" or ".bmp" or ".gif")
-        {
-            using IRandomAccessStream stream = await file.OpenAsync(Windows.Storage.FileAccessMode.Read);
-            BitmapImage bitmap = new();
-            await bitmap.SetSourceAsync(stream);
-            ChatImagePreview.Source = bitmap;
-            ChatImagePreview.Visibility = Visibility.Visible;
-        }
-        else
-        {
-            ChatImagePreview.Source = null;
-            ChatImagePreview.Visibility = Visibility.Collapsed;
-        }
-
-        ChatImageAttachmentPanel.Visibility = Visibility.Visible;
-    }
-
-    private void OnRemoveChatMediaClicked(object sender, RoutedEventArgs e)
-    {
-        ViewModel.ClearChatAttachment();
-    }
-
-    private void OnChatAttachmentCleared()
-    {
-        ChatImagePreview.Source = null;
-        ChatImagePreview.Visibility = Visibility.Visible;
-        ChatImageAttachmentPanel.Visibility = Visibility.Collapsed;
-    }
-
-    private void OnSpeechGenerated(GeneratedSpeechResult result)
-    {
-        GeneratedSpeech.Source = MediaSource.CreateFromUri(new Uri(result.OutputPath));
-        GeneratedSpeech.Visibility = Visibility.Visible;
+        string section = args.IsSettingsSelected
+            ? "Settings"
+            : args.SelectedItemContainer?.Tag as string ?? "Chat";
+        ChatSection.Visibility = ToVisibility(section == "Chat");
+        ImagesSection.Visibility = ToVisibility(section == "Images");
+        VideoSection.Visibility = ToVisibility(section == "Video");
+        AudioSection.Visibility = ToVisibility(section == "Audio");
+        ModelsSection.Visibility = ToVisibility(section == "Models");
+        ApiSection.Visibility = ToVisibility(section == "Api");
+        SettingsSection.Visibility = ToVisibility(section == "Settings");
     }
 }

@@ -1,3 +1,5 @@
+using MoE.ModelManager.Services;
+
 namespace MoE.ModelManager.Models;
 
 /// <summary>
@@ -99,4 +101,14 @@ public sealed class ModelDefinition
     /// Gets a value indicating whether this model accepts any media attachment.
     /// </summary>
     public bool HasMultimodalInput => HasVision || SupportsAudio || SupportsVideo;
+
+    /// <summary>
+    /// Gets the packaged publisher logo shown beside the model.
+    /// </summary>
+    public Uri LogoUri => ModelBrandCatalog.GetLogo(Id);
+
+    /// <summary>
+    /// Gets the model publisher name, or an empty string when unknown.
+    /// </summary>
+    public string Publisher => ModelBrandCatalog.GetPublisher(Id);
 }

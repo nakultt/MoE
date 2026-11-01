@@ -4,8 +4,10 @@ Native WinUI 3 desktop control center for local Nemotron 3 Nano Omni, Qwen3.6, G
 
 ## What is included
 
-- Model selection, load, eject, and live runtime status.
-- Streaming local chat with native Markdown rendering and image, audio, or video attachments. All three chat models can switch reasoning on or off per request with a thinking-token budget, a context-window bar shows how much of the window the conversation has consumed, and **New chat** clears prior context without ejecting the model.
+- Windows 11 Fluent interface: navigation pane (Chat, Images, Video, Audio, Models, API & activity, Settings), Mica backdrop, light/dark/high-contrast themes, and publisher logos for every model.
+- Model selection, load, eject, and live runtime status, with a **Models** page that lists every runtime, its files, and any load error.
+- Streaming local chat with native Markdown rendering and image, audio, or video attachments. All three chat models can switch reasoning on or off per request with a thinking-token budget, a context-window ring shows how much of the window the conversation has consumed, and **New chat** clears prior context without ejecting the model.
+- Saved chat history on this PC: reopen, rename, delete, or export conversations as Markdown, and turn saving off or clear all history in **Settings**.
 - FLUX.2 Klein image generation with size selection, in-app preview, automatic local saving, and cancel support.
 - FastWan2.2 three-step video generation with Turbo, Balanced, and Quality presets, in-app MP4 playback, local saving, and stop/eject support.
 - Native C# speech-to-text with Parakeet TDT 0.6B v3 INT8 and text-to-speech with Kokoro 82M, including editable transcription, voice/speed selection, WAV playback, and local saving.
@@ -136,7 +138,7 @@ Commits pushed to `main` that change the WinUI project, its tests, installer/run
 ### Local speech configuration
 
 
-The Audio tab exposes Parakeet and Kokoro as independent CPU runtimes, each with its own load and eject controls. Parakeet handles multilingual transcription and token timestamps; Kokoro provides the configured American and British English voices. Load only the capability you need, or keep both loaded. Because they run through native ONNX in the WinUI process, they use no meaningful GPU memory and can remain loaded while a text, image, or video model uses the RTX 4060.
+The Audio page exposes Parakeet and Kokoro as independent CPU runtimes, each with its own load and eject controls. Parakeet handles multilingual transcription and token timestamps; Kokoro provides the configured American and British English voices. Load only the capability you need, or keep both loaded. Because they run through native ONNX in the WinUI process, they use no meaningful GPU memory and can remain loaded while a text, image, or video model uses the RTX 4060.
 
 The verified smoke test generated 3.59 seconds of Kokoro speech and Parakeet transcribed the result exactly in 0.29 seconds. Run `scripts\setup-audio-models.ps1` once to download the approximately 800 MB compressed model archives; extracted models remain outside the repository.
 
@@ -246,7 +248,7 @@ The configured [`APEX-I-Nano` GGUF](https://huggingface.co/mudler/Nemotron-3-Nan
 
 This is not NVIDIA's reference/native-video deployment. NVIDIA specifies at least an RTX 5090 32 GB for the official 21 GB NVFP4 checkpoint, 48 GB for FP8, or an H100 80 GB for BF16. The reference vLLM pipeline samples video at up to 1–2 FPS / 128–256 frames and can process embedded audio. On the 8 GB/32 GB profile, the desktop app uniformly samples four 384×384 frames across the complete clip and submits them through CRADIO as an ordered image sequence, while the first embedded audio track is submitted separately through Parakeet. This avoids llama.cpp's long-video context/RAM failure while preserving local video+speech Q&A, but temporal accuracy may differ from the official vLLM/TensorRT pipeline.
 
-Use the **Reasoning mode** switch in the Chat tab. Turning it off sends `chat_template_kwargs.enable_thinking=false`; turning it on sends `true`. The switch applies to all three chat models, not just Nemotron. The same field is available to external API clients. Attach one supported file per desktop message:
+Use the **Think** menu in the Chat message box. Turning it off sends `chat_template_kwargs.enable_thinking=false`; turning it on sends `true`. The switch applies to all three chat models, not just Nemotron. The same field is available to external API clients. Attach one supported file per desktop message:
 
 | Input | Desktop limit | Formats |
 | --- | ---: | --- |
@@ -266,19 +268,19 @@ For direct llama.cpp use without the desktop app:
 
 ## Reasoning and context use
 
-All three chat models expose a thinking channel, so `supportsReasoning` is set for each of them in `Configuration/models.json` and the **Reasoning mode** switch is live for all three.
+All three chat models expose a thinking channel, so `supportsReasoning` is set for each of them in `Configuration/models.json` and the **Think** menu is live for all three.
 
 ### Every request defaults to non-thinking
 
 The model templates disagree about their own default: Qwen3.6 and Nemotron Omni think unless told otherwise, while Gemma 4 defaults to a direct answer. To make behaviour uniform, `OpenAiProxyService` injects `chat_template_kwargs.enable_thinking=false` into any `/v1/chat/completions` request that does not set the field. An explicit `true` or `false` from a client is always honoured, so opting in stays a one-field change.
 
-The desktop **Reasoning mode** switch is also off by default.
+The desktop **Reasoning** switch in the **Think** menu is also off by default.
 
 ### Thinking budget
 
 `llama-server` is started with `-rea auto` for reasoning-capable models so the template, and therefore the per-request `enable_thinking` field, decides whether thoughts are produced. Thoughts are returned in `message.reasoning_content` and are rendered in a collapsed **Thinking** expander in the desktop chat rather than mixed into the answer.
 
-An unbounded thinking channel can consume the entire token limit and return empty visible content. The Chat tab therefore exposes a thinking-budget slider (0 to 4,096 tokens, default 512) that sends `reasoning_budget_tokens`. Measured on Gemma at a 400-token limit:
+An unbounded thinking channel can consume the entire token limit and return empty visible content. The **Think** menu in the Chat message box therefore exposes a thinking-budget slider (0 to 4,096 tokens, default 512) that sends `reasoning_budget_tokens`. Measured on Gemma at a 400-token limit:
 
 | Request | Reasoning characters | Answer characters |
 | --- | ---: | ---: |
@@ -288,9 +290,13 @@ An unbounded thinking channel can consume the entire token limit and return empt
 
 Setting the slider to 0 sends no budget and lets the model think without limit.
 
-### Context window bar
+### Context window ring
 
-The Chat tab shows a progress bar and a `used / limit` caption for the loaded model's context window. The counts come from the `usage` object in the final streaming chunk, which the proxy already requests through `stream_options.include_usage`, so the bar reflects the tokens the backend actually charged rather than a client-side estimate. It resets on **New chat** and when the selected model changes.
+The Chat message box shows a progress ring and a `used / limit` caption for the loaded model's context window (hover it for the percentage). The counts come from the `usage` object in the final streaming chunk, which the proxy already requests through `stream_options.include_usage`, so the ring reflects the tokens the backend actually charged rather than a client-side estimate. It resets on **New chat** and when the selected model changes.
+
+### Chat history
+
+Each conversation is saved after every reply as one JSON file in `%LOCALAPPDATA%\MoEModelManager\Chats`. Only text, reasoning, and attachment file names are stored; attached media is never copied. The **History** pane in Chat reopens, renames, exports (Markdown), and deletes conversations. **Settings → Chat history** turns saving off, opens the folder, or deletes everything. A reopened conversation can be continued with any loaded model, but earlier attachments are not resent.
 
 ---
 
@@ -1578,7 +1584,7 @@ Load a model in the app first. By default the API listens only on loopback and d
 
 ### Allow devices on your LAN
 
-In **OpenAI-compatible API** on the app's left panel, switch on **Allow requests from devices on this network**, then select **Apply network setting**. The app shows the LAN base URL, for example `http://192.168.1.25:8081/v1`. Run `scripts\enable-network-api-firewall.ps1` once to allow TCP port 8081 through the Windows **Private** network firewall profile.
+On the app's **API & activity** page, turn on **Network access**; the change applies immediately. The app shows the LAN base URL, for example `http://192.168.1.25:8081/v1`. Run `scripts\enable-network-api-firewall.ps1` once to allow TCP port 8081 through the Windows **Private** network firewall profile.
 
 LAN mode intentionally has no authentication, as requested. Only enable it on a trusted private network. It does not expose the service to the public internet unless you separately configure router port forwarding.
 
@@ -1595,7 +1601,7 @@ response = client.chat.completions.create(
 print(response.choices[0].message.content)
 ```
 
-Both text models also accept images. The desktop Chat tab has **Attach image** with a preview. External clients use the standard OpenAI multimodal content array with either an HTTP image URL or a base64 data URL:
+Both text models also accept images. The desktop Chat message box has an **Attach media** button with a preview. External clients use the standard OpenAI multimodal content array with either an HTTP image URL or a base64 data URL:
 
 ```python
 import base64

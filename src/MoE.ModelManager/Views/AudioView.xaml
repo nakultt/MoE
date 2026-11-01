@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="MoE.ModelManager.Views.AudioView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:MoE.ModelManager.Controls"
+    xmlns:helpers="using:MoE.ModelManager.Helpers"
+    IsTabStop="False">
+
+  <Grid Padding="{StaticResource PagePadding}" RowSpacing="16">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+    <TextBlock x:Uid="AudioHeading" Style="{StaticResource PageTitleTextStyle}" />
+
+    <Grid Grid.Row="1" ColumnSpacing="16">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+
+      <!--  Speech to text  -->
+      <Border Padding="0" Style="{StaticResource CardBorderStyle}">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+          </Grid.RowDefinitions>
+          <StackPanel
+              Padding="20,18,20,14"
+              BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+              BorderThickness="0,0,0,1"
+              Spacing="10">
+            <TextBlock x:Uid="TranscriptionHeading" Style="{StaticResource SubtitleTextBlockStyle}" />
+            <TextBlock
+                x:Uid="TranscriptionHint"
+                Style="{StaticResource SecondaryBodyTextStyle}"
+                TextWrapping="Wrap" />
+            <controls:RuntimeControlBar
+                EjectAutomationId="EjectSpeechToTextModelButton"
+                EjectCommand="{x:Bind ViewModel.EjectSpeechToTextModelCommand}"
+                LoadAutomationId="LoadSpeechToTextModelButton"
+                LoadCommand="{x:Bind ViewModel.LoadSpeechToTextModelCommand}"
+                LogoUri="{x:Bind ViewModel.SpeechToTextModelLogo, Mode=OneWay}"
+                ModelName="{x:Bind ViewModel.SpeechToTextModelName, Mode=OneWay}"
+                Status="{x:Bind ViewModel.SpeechToTextRuntimeStatus, Mode=OneWay}"
+                StatusText="{x:Bind ViewModel.SpeechToTextRuntimeStatusText, Mode=OneWay}" />
+            <InfoBar
+                IsClosable="False"
+                IsOpen="{x:Bind ViewModel.HasSpeechToTextRuntimeDetail, Mode=OneWay}"
+                Message="{x:Bind ViewModel.SpeechToTextRuntimeDetail, Mode=OneWay}"
+                Severity="Error"
+                Visibility="{x:Bind ViewModel.HasSpeechToTextRuntimeDetail, Mode=OneWay}" />
+          </StackPanel>
+          <Grid
+              Grid.Row="1"
+              Padding="20,16,20,20"
+              RowSpacing="12">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Grid ColumnSpacing="12">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <Button
+                  x:Name="SelectAudioFileButton"
+                  x:Uid="SelectAudioFileButton"
+                  AutomationProperties.AutomationId="SelectAudioFileButton"
+                  Click="OnSelectAudioFileClicked">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <FontIcon FontSize="14" Glyph="&#xE8E5;" />
+                  <TextBlock x:Uid="SelectAudioFileText" />
+                </StackPanel>
+              </Button>
+              <TextBlock
+                  x:Uid="NoAudioFileText"
+                  Grid.Column="1"
+                  VerticalAlignment="Center"
+                  Style="{StaticResource SecondaryBodyTextStyle}"
+                  Visibility="{x:Bind helpers:ViewHelpers.CollapsedIf(ViewModel.HasSelectedAudioFile), Mode=OneWay}" />
+              <TextBlock
+                  Grid.Column="1"
+                  VerticalAlignment="Center"
+                  Text="{x:Bind ViewModel.SelectedAudioFileName, Mode=OneWay}"
+                  TextTrimming="CharacterEllipsis"
+                  ToolTipService.ToolTip="{x:Bind ViewModel.SelectedAudioFilePath, Mode=OneWay}"
+                  Visibility="{x:Bind ViewModel.HasSelectedAudioFile, Mode=OneWay}" />
+            </Grid>
+            <Grid Grid.Row="1" ColumnSpacing="8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <Button
+                  x:Uid="TranscribeButton"
+                  HorizontalAlignment="Stretch"
+                  AutomationProperties.AutomationId="TranscribeButton"
+                  Command="{x:Bind ViewModel.TranscribeAudioCommand}"
+                  Style="{StaticResource AccentButtonStyle}" />
+              <Button
+                  x:Uid="CancelTranscriptionButton"
+                  Grid.Column="1"
+                  AutomationProperties.AutomationId="CancelTranscriptionButton"
+                  Command="{x:Bind ViewModel.CancelAudioOperationCommand}" />
+            </Grid>
+            <TextBlock
+                Grid.Row="2"
+                Style="{StaticResource SecondaryCaptionTextStyle}"
+                Text="{x:Bind ViewModel.TranscriptionSummary, Mode=OneWay}"
+                TextWrapping="Wrap"
+                Visibility="{x:Bind helpers:ViewHelpers.VisibleIfText(ViewModel.TranscriptionSummary), Mode=OneWay}" />
+            <TextBox
+                x:Uid="TranscriptionOutput"
+                Grid.Row="3"
+                AcceptsReturn="True"
+                AutomationProperties.AutomationId="TranscriptionOutput"
+                ScrollViewer.VerticalScrollBarVisibility="Auto"
+                Text="{x:Bind ViewModel.TranscriptionText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                TextWrapping="Wrap" />
+          </Grid>
+        </Grid>
+      </Border>
+
+      <!--  Text to speech  -->
+      <Border
+          Grid.Column="1"
+          Padding="0"
+          Style="{StaticResource CardBorderStyle}">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+          </Grid.RowDefinitions>
+          <StackPanel
+              Padding="20,18,20,14"
+              BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+              BorderThickness="0,0,0,1"
+              Spacing="10">
+            <TextBlock x:Uid="SpeechHeading" Style="{StaticResource SubtitleTextBlockStyle}" />
+            <TextBlock
+                x:Uid="SpeechHint"
+                Style="{StaticResource SecondaryBodyTextStyle}"
+                TextWrapping="Wrap" />
+            <controls:RuntimeControlBar
+                EjectAutomationId="EjectTextToSpeechModelButton"
+                EjectCommand="{x:Bind ViewModel.EjectTextToSpeechModelCommand}"
+                LoadAutomationId="LoadTextToSpeechModelButton"
+                LoadCommand="{x:Bind ViewModel.LoadTextToSpeechModelCommand}"
+                LogoUri="{x:Bind ViewModel.TextToSpeechModelLogo, Mode=OneWay}"
+                ModelName="{x:Bind ViewModel.TextToSpeechModelName, Mode=OneWay}"
+                Status="{x:Bind ViewModel.TextToSpeechRuntimeStatus, Mode=OneWay}"
+                StatusText="{x:Bind ViewModel.TextToSpeechRuntimeStatusText, Mode=OneWay}" />
+            <InfoBar
+                IsClosable="False"
+                IsOpen="{x:Bind ViewModel.HasTextToSpeechRuntimeDetail, Mode=OneWay}"
+                Message="{x:Bind ViewModel.TextToSpeechRuntimeDetail, Mode=OneWay}"
+                Severity="Error"
+                Visibility="{x:Bind ViewModel.HasTextToSpeechRuntimeDetail, Mode=OneWay}" />
+          </StackPanel>
+          <ScrollViewer Grid.Row="1" HorizontalScrollMode="Disabled">
+            <StackPanel Padding="20,16,24,20" Spacing="12">
+              <TextBox
+                  x:Uid="SpeechTextBox"
+                  MinHeight="150"
+                  MaxHeight="260"
+                  AcceptsReturn="True"
+                  AutomationProperties.AutomationId="SpeechTextBox"
+                  ScrollViewer.VerticalScrollBarVisibility="Auto"
+                  Text="{x:Bind ViewModel.SpeechText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                  TextWrapping="Wrap" />
+              <Grid ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <ComboBox
+                    x:Uid="VoicePicker"
+                    HorizontalAlignment="Stretch"
+                    AutomationProperties.AutomationId="VoicePicker"
+                    DisplayMemberPath="DisplayName"
+                    ItemsSource="{x:Bind ViewModel.Voices, Mode=OneWay}"
+                    SelectedItem="{x:Bind ViewModel.SelectedVoice, Mode=TwoWay}" />
+                <StackPanel Grid.Column="1" Spacing="0">
+                  <Grid>
+                    <TextBlock x:Name="SpeechSpeedLabel" x:Uid="SpeechSpeedLabel" />
+                    <TextBlock
+                        HorizontalAlignment="Right"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="{x:Bind ViewModel.SpeechSpeedText, Mode=OneWay}" />
+                  </Grid>
+                  <Slider
+                      x:Uid="SpeechSpeedSlider"
+                      AutomationProperties.AutomationId="SpeechSpeedSlider"
+                      AutomationProperties.LabeledBy="{x:Bind SpeechSpeedLabel}"
+                      Maximum="2"
+                      Minimum="0.5"
+                      SmallChange="0.05"
+                      StepFrequency="0.05"
+                      Value="{x:Bind ViewModel.SpeechSpeed, Mode=TwoWay}" />
+                </StackPanel>
+              </Grid>
+              <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Button
+                    x:Uid="GenerateSpeechButton"
+                    HorizontalAlignment="Stretch"
+                    AutomationProperties.AutomationId="GenerateSpeechButton"
+                    Command="{x:Bind ViewModel.SynthesizeSpeechCommand}"
+                    Style="{StaticResource AccentButtonStyle}" />
+                <Button
+                    x:Uid="CancelSpeechButton"
+                    Grid.Column="1"
+                    AutomationProperties.AutomationId="CancelSpeechButton"
+                    Command="{x:Bind ViewModel.CancelAudioOperationCommand}" />
+              </Grid>
+              <MediaPlayerElement
+                  x:Name="GeneratedSpeech"
+                  x:Uid="GeneratedSpeech"
+                  Height="80"
+                  AreTransportControlsEnabled="True"
+                  AutomationProperties.AutomationId="GeneratedSpeechPlayer"
+                  AutoPlay="True"
+                  Visibility="Collapsed" />
+              <TextBlock
+                  Style="{StaticResource SecondaryCaptionTextStyle}"
+                  Text="{x:Bind ViewModel.GeneratedSpeechSummary, Mode=OneWay}"
+                  TextWrapping="Wrap"
+                  Visibility="{x:Bind helpers:ViewHelpers.VisibleIfText(ViewModel.GeneratedSpeechSummary), Mode=OneWay}" />
+              <StackPanel
+                  Orientation="Horizontal"
+                  Spacing="8"
+                  Visibility="{x:Bind ViewModel.HasGeneratedSpeech, Mode=OneWay}">
+                <Button
+                    x:Uid="ShowResultInFolderButton"
+                    AutomationProperties.AutomationId="ShowGeneratedSpeechButton"
+                    Click="OnShowSpeechInFolderClicked">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon FontSize="14" Glyph="&#xE8B7;" />
+                    <TextBlock x:Uid="ShowResultInFolderText" />
+                  </StackPanel>
+                </Button>
+                <Button
+                    x:Uid="CopyResultPathButton"
+                    Click="OnCopySpeechPathClicked"
+                    Style="{StaticResource IconButtonStyle}">
+                  <FontIcon FontSize="14" Glyph="&#xE8C8;" />
+                </Button>
+              </StackPanel>
+            </StackPanel>
+          </ScrollViewer>
+        </Grid>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>

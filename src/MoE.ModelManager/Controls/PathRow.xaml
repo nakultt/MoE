@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="MoE.ModelManager.Controls.PathRow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    IsTabStop="False">
+
+  <Grid Padding="0,3" ColumnSpacing="12">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="132" />
+      <ColumnDefinition Width="*" />
+      <ColumnDefinition Width="Auto" />
+      <ColumnDefinition Width="Auto" />
+    </Grid.ColumnDefinitions>
+    <TextBlock
+        x:Name="LabelText"
+        VerticalAlignment="Center"
+        Style="{StaticResource SecondaryBodyTextStyle}"
+        Text="{x:Bind Label, Mode=OneWay}"
+        TextTrimming="CharacterEllipsis" />
+    <Border
+        Grid.Column="1"
+        Padding="10,6"
+        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+        CornerRadius="{StaticResource ControlCornerRadius}">
+      <TextBlock
+          AutomationProperties.LabeledBy="{x:Bind LabelText}"
+          IsTextSelectionEnabled="True"
+          Style="{StaticResource MonospaceTextStyle}"
+          Text="{x:Bind PathText, Mode=OneWay}"
+          TextTrimming="CharacterEllipsis"
+          ToolTipService.ToolTip="{x:Bind PathText, Mode=OneWay}" />
+    </Border>
+    <Button
+        x:Uid="PathRowCopyButton"
+        Grid.Column="2"
+        Click="OnCopyClicked"
+        Style="{StaticResource IconButtonStyle}">
+      <FontIcon FontSize="14" Glyph="&#xE8C8;" />
+    </Button>
+    <Button
+        x:Uid="PathRowFolderButton"
+        Grid.Column="3"
+        Click="OnShowInFolderClicked"
+        Style="{StaticResource IconButtonStyle}">
+      <FontIcon FontSize="14" Glyph="&#xE8B7;" />
+    </Button>
+  </Grid>
+</UserControl>

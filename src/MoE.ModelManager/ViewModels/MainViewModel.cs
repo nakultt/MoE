@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -37,11 +38,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly IImageGenerationService _imageGenerationService;
     private readonly IVideoGenerationService _videoGenerationService;
     private readonly IRequestTelemetryService _telemetryService;
+    private readonly IChatHistoryService _chatHistoryService;
+    private readonly IAppSettingsService _settingsService;
     private readonly SynchronizationContext? _uiContext;
     private CancellationTokenSource? _generationCancellation;
     private CancellationTokenSource? _imageGenerationCancellation;
     private CancellationTokenSource? _audioOperationCancellation;
     private CancellationTokenSource? _videoGenerationCancellation;
+    private ChatConversation? _currentConversation;
+    private string _loadedModelId = string.Empty;
+    private int _chatSessionVersion;
     private bool _isInitialized;
 
     internal MainViewModel(
@@ -58,7 +64,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IOpenAiChatService chatService,
         IImageGenerationService imageGenerationService,
         IVideoGenerationService videoGenerationService,
-        IRequestTelemetryService telemetryService)
+        IRequestTelemetryService telemetryService,
+        IChatHistoryService chatHistoryService,
+        IAppSettingsService settingsService)
     {
         _apiProxyService = apiProxyService;
         _resources = resources;
@@ -74,6 +82,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _imageGenerationService = imageGenerationService;
         _videoGenerationService = videoGenerationService;
         _telemetryService = telemetryService;
+        _chatHistoryService = chatHistoryService;
+        _settingsService = settingsService;
         _uiContext = SynchronizationContext.Current;
         RuntimeStatusText = resources.GetString("StatusUnloaded");
         ImageRuntimeStatusText = resources.GetString("StatusUnloaded");
@@ -81,7 +91,43 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         TextToSpeechRuntimeStatusText = resources.GetString("StatusUnloaded");
         VideoRuntimeStatusText = resources.GetString("StatusUnloaded");
         ApiStatusText = resources.GetString("ApiStopped");
+        VideoPresets =
+        [
+            new()
+            {
+                DisplayName = resources.GetString("VideoPresetTurbo"),
+                Width = 384,
+                Height = 384,
+                Frames = 25,
+                FramesPerSecond = 12,
+            },
+            new()
+            {
+                DisplayName = resources.GetString("VideoPresetBalanced"),
+                Width = 448,
+                Height = 448,
+                Frames = 49,
+                FramesPerSecond = 16,
+            },
+            new()
+            {
+                DisplayName = resources.GetString("VideoPresetQuality"),
+                Width = 512,
+                Height = 512,
+                Frames = 81,
+                FramesPerSecond = 16,
+            },
+        ];
         SelectedVideoPreset = VideoPresets[1];
+        IsChatHistoryEnabled = settingsService.Current.SaveChatHistory;
+        ThemeIndex = settingsService.Current.Theme switch
+        {
+            AppSettings.LightTheme => 1,
+            AppSettings.DarkTheme => 2,
+            _ => 0,
+        };
+        Messages.CollectionChanged += OnMessagesCollectionChanged;
+        Conversations.CollectionChanged += OnConversationsCollectionChanged;
     }
 
     public event Action<GeneratedImageResult>? ImageGenerated;
@@ -91,6 +137,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public event Action<GeneratedVideoResult>? VideoGenerated;
 
     public event Action? ChatAttachmentCleared;
+
+    /// <summary>
+    /// Occurs when the user picks a different app theme.
+    /// </summary>
+    public event Action<string>? ThemeChanged;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(LoadModelCommand))]
@@ -130,33 +181,39 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial string RuntimeStatusText { get; set; } = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasRuntimeDetail))]
     public partial string RuntimeDetail { get; set; } = string.Empty;
 
     [ObservableProperty]
     public partial string ImageRuntimeStatusText { get; set; } = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasImageRuntimeDetail))]
     public partial string ImageRuntimeDetail { get; set; } = string.Empty;
 
     [ObservableProperty]
     public partial string SpeechToTextRuntimeStatusText { get; set; } = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSpeechToTextRuntimeDetail))]
     public partial string SpeechToTextRuntimeDetail { get; set; } = string.Empty;
 
     [ObservableProperty]
     public partial string TextToSpeechRuntimeStatusText { get; set; } = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasTextToSpeechRuntimeDetail))]
     public partial string TextToSpeechRuntimeDetail { get; set; } = string.Empty;
 
     [ObservableProperty]
     public partial string VideoRuntimeStatusText { get; set; } = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasVideoRuntimeDetail))]
     public partial string VideoRuntimeDetail { get; set; } = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsApiListening))]
     public partial string ApiStatusText { get; set; } = string.Empty;
 
     [ObservableProperty]
@@ -170,6 +227,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial string UserPrompt { get; set; } = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasChatAttachment))]
     public partial string SelectedChatAttachmentPath { get; set; } = string.Empty;
 
     [ObservableProperty]
@@ -179,13 +237,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial string SelectedChatAttachmentType { get; set; } = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ReasoningButtonText))]
     public partial bool IsReasoningEnabled { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ReasoningButtonText))]
+    [NotifyPropertyChangedFor(nameof(ThinkingBudgetText))]
     public partial double ThinkingBudgetTokens { get; set; } = DefaultThinkingBudgetTokens;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ContextUsageText))]
+    [NotifyPropertyChangedFor(nameof(ContextUsageShortText))]
     [NotifyPropertyChangedFor(nameof(ContextUsagePercent))]
     public partial int ContextUsedTokens { get; set; }
 
@@ -217,6 +279,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial string SelectedImageSize { get; set; } = "512x512";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasGeneratedImage))]
+    [NotifyPropertyChangedFor(nameof(GeneratedImageFileName))]
     public partial string GeneratedImagePath { get; set; } = string.Empty;
 
     [ObservableProperty]
@@ -224,6 +288,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(TranscribeAudioCommand))]
+    [NotifyPropertyChangedFor(nameof(HasSelectedAudioFile))]
+    [NotifyPropertyChangedFor(nameof(SelectedAudioFileName))]
     public partial string SelectedAudioFilePath { get; set; } = string.Empty;
 
     [ObservableProperty]
@@ -241,9 +307,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial KokoroVoice? SelectedVoice { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SpeechSpeedText))]
     public partial double SpeechSpeed { get; set; } = 1d;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasGeneratedSpeech))]
     public partial string GeneratedSpeechPath { get; set; } = string.Empty;
 
     [ObservableProperty]
@@ -257,10 +325,43 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial VideoGenerationPreset? SelectedVideoPreset { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasGeneratedVideo))]
+    [NotifyPropertyChangedFor(nameof(GeneratedVideoFileName))]
     public partial string GeneratedVideoPath { get; set; } = string.Empty;
 
     [ObservableProperty]
     public partial string GeneratedVideoSummary { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether chat conversations are saved on this PC.
+    /// </summary>
+    [ObservableProperty]
+    public partial bool IsChatHistoryEnabled { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the chat history pane is shown.
+    /// </summary>
+    [ObservableProperty]
+    public partial bool IsHistoryPaneOpen { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the history entry for the conversation currently on screen.
+    /// </summary>
+    [ObservableProperty]
+    public partial ChatConversationSummary? CurrentConversationSummary { get; set; }
+
+    /// <summary>
+    /// Gets or sets the last chat-history error, if any.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasHistoryError))]
+    public partial string HistoryErrorText { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the selected theme: 0 follows Windows, 1 is light, 2 is dark.
+    /// </summary>
+    [ObservableProperty]
+    public partial int ThemeIndex { get; set; }
 
     public ObservableCollection<ModelDefinition> Models { get; } = [];
 
@@ -268,9 +369,24 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<RequestMetric> RequestMetrics { get; } = [];
 
+    /// <summary>
+    /// Gets the saved conversations, newest first.
+    /// </summary>
+    public ObservableCollection<ChatConversationSummary> Conversations { get; } = [];
+
     public bool CanAttachChatMedia => SelectedModel?.HasMultimodalInput == true;
 
     public bool CanConfigureReasoning => SelectedModel?.SupportsReasoning == true;
+
+    public bool HasChatAttachment => !string.IsNullOrWhiteSpace(SelectedChatAttachmentPath);
+
+    public bool HasNoMessages => Messages.Count == 0;
+
+    public bool HasNoConversations => Conversations.Count == 0;
+
+    public bool HasHistoryError => !string.IsNullOrWhiteSpace(HistoryErrorText);
+
+    public string HistoryDirectory => _chatHistoryService.HistoryDirectory;
 
     /// <summary>
     /// Gets the loaded model's context window, in tokens.
@@ -285,7 +401,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         : Math.Min(100d, ContextUsedTokens * 100d / ContextLimitTokens);
 
     /// <summary>
-    /// Gets the caption shown beside the context usage bar.
+    /// Gets the full context usage description used for the tooltip and screen readers.
     /// </summary>
     public string ContextUsageText
     {
@@ -293,7 +409,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             if (ContextLimitTokens <= 0)
             {
-                return string.Empty;
+                return _resources.GetString("ContextUsageEmpty");
             }
 
             return string.Format(
@@ -305,35 +421,53 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Gets the compact context usage caption shown in the message composer.
+    /// </summary>
+    public string ContextUsageShortText => ContextLimitTokens <= 0
+        ? string.Empty
+        : string.Format(
+            CultureInfo.CurrentCulture,
+            _resources.GetString("ContextUsageShortFormat"),
+            ContextUsedTokens,
+            ContextLimitTokens);
+
+    /// <summary>
+    /// Gets the caption of the reasoning drop-down button.
+    /// </summary>
+    public string ReasoningButtonText
+    {
+        get
+        {
+            if (!CanConfigureReasoning)
+            {
+                return _resources.GetString("ReasoningButtonUnavailable");
+            }
+
+            return IsReasoningEnabled
+                ? string.Format(CultureInfo.CurrentCulture, _resources.GetString("ReasoningButtonOnFormat"), ThinkingBudgetTokens)
+                : _resources.GetString("ReasoningButtonOff");
+        }
+    }
+
+    /// <summary>
+    /// Gets the thinking budget caption shown beside the slider.
+    /// </summary>
+    public string ThinkingBudgetText => string.Format(
+        CultureInfo.CurrentCulture,
+        _resources.GetString("ThinkingBudgetValueFormat"),
+        ThinkingBudgetTokens);
+
+    /// <summary>
+    /// Gets the placeholder shown in the message box.
+    /// </summary>
+    public string PromptPlaceholderText => SelectedModel is null
+        ? _resources.GetString("PromptPlaceholderNoModel")
+        : string.Format(CultureInfo.CurrentCulture, _resources.GetString("PromptPlaceholderFormat"), SelectedModel.DisplayName);
+
     public IReadOnlyList<string> ImageSizes { get; } = ["512x512", "768x768", "1024x1024"];
 
-    public IReadOnlyList<VideoGenerationPreset> VideoPresets { get; } =
-    [
-        new()
-        {
-            DisplayName = "Turbo · 384×384 · 2 seconds",
-            Width = 384,
-            Height = 384,
-            Frames = 25,
-            FramesPerSecond = 12,
-        },
-        new()
-        {
-            DisplayName = "Balanced · 448×448 · 3 seconds",
-            Width = 448,
-            Height = 448,
-            Frames = 49,
-            FramesPerSecond = 16,
-        },
-        new()
-        {
-            DisplayName = "Quality · 512×512 · 5 seconds",
-            Width = 512,
-            Height = 512,
-            Frames = 81,
-            FramesPerSecond = 16,
-        },
-    ];
+    public IReadOnlyList<VideoGenerationPreset> VideoPresets { get; }
 
     public ImageModelDefinition? ImageModel { get; private set; }
 
@@ -345,11 +479,102 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public string NetworkApiBaseUrl => _apiProxyService.NetworkBaseUrl;
 
+    public bool IsApiListening => string.Equals(ApiStatusText, _resources.GetString("ApiReady"), StringComparison.Ordinal);
+
     public bool HasNoMetrics => RequestMetrics.Count == 0;
+
+    public bool HasMetrics => RequestMetrics.Count > 0;
+
+    public bool HasRuntimeDetail => !string.IsNullOrWhiteSpace(RuntimeDetail);
+
+    public bool HasImageRuntimeDetail => !string.IsNullOrWhiteSpace(ImageRuntimeDetail);
+
+    public bool HasVideoRuntimeDetail => !string.IsNullOrWhiteSpace(VideoRuntimeDetail);
+
+    public bool HasSpeechToTextRuntimeDetail => !string.IsNullOrWhiteSpace(SpeechToTextRuntimeDetail);
+
+    public bool HasTextToSpeechRuntimeDetail => !string.IsNullOrWhiteSpace(TextToSpeechRuntimeDetail);
+
+    public bool HasGeneratedImage => !string.IsNullOrWhiteSpace(GeneratedImagePath);
+
+    public string GeneratedImageFileName => Path.GetFileName(GeneratedImagePath);
+
+    public bool HasGeneratedVideo => !string.IsNullOrWhiteSpace(GeneratedVideoPath);
+
+    public string GeneratedVideoFileName => Path.GetFileName(GeneratedVideoPath);
+
+    public bool HasGeneratedSpeech => !string.IsNullOrWhiteSpace(GeneratedSpeechPath);
+
+    public bool HasSelectedAudioFile => !string.IsNullOrWhiteSpace(SelectedAudioFilePath);
+
+    public string SelectedAudioFileName => Path.GetFileName(SelectedAudioFilePath);
+
+    public string SpeechSpeedText => string.Format(CultureInfo.CurrentCulture, _resources.GetString("SpeechSpeedFormat"), SpeechSpeed);
 
     public string SelectedModelPath => SelectedModel?.ModelPath ?? string.Empty;
 
+    public string SelectedVisionProjectorPath => SelectedModel?.VisionProjectorPath ?? string.Empty;
+
+    public bool HasSelectedVisionProjector => SelectedModel?.HasVision == true;
+
+    public string SelectedDraftModelPath => SelectedModel?.DraftModelPath ?? string.Empty;
+
+    public bool HasSelectedDraftModel => SelectedModel?.HasDraftModel == true;
+
     public string SelectedDescription => SelectedModel?.Description ?? string.Empty;
+
+    public string SelectedModelName => SelectedModel?.DisplayName ?? string.Empty;
+
+    public Uri SelectedModelLogo => SelectedModel?.LogoUri ?? ModelBrandCatalog.FallbackLogo;
+
+    public string SelectedModelPublisher => SelectedModel?.Publisher ?? string.Empty;
+
+    /// <summary>
+    /// Gets short capability tags for the selected language model.
+    /// </summary>
+    public IReadOnlyList<string> SelectedModelCapabilities
+    {
+        get
+        {
+            ModelDefinition? model = SelectedModel;
+            if (model is null)
+            {
+                return [];
+            }
+
+            List<string> tags =
+            [
+                string.Format(CultureInfo.CurrentCulture, _resources.GetString("CapabilityContextFormat"), model.ContextSize / 1024),
+            ];
+            if (model.HasVision)
+            {
+                tags.Add(_resources.GetString("CapabilityVision"));
+            }
+
+            if (model.SupportsAudio)
+            {
+                tags.Add(_resources.GetString("CapabilityAudio"));
+            }
+
+            if (model.SupportsVideo)
+            {
+                tags.Add(_resources.GetString("CapabilityVideo"));
+            }
+
+            if (model.SupportsReasoning)
+            {
+                tags.Add(_resources.GetString("CapabilityReasoning"));
+            }
+
+            if (model.HasDraftModel)
+            {
+                tags.Add(_resources.GetString("CapabilitySpeculative"));
+            }
+
+            tags.Add(SelectedMeasuredSpeed);
+            return tags;
+        }
+    }
 
     public string ImageModelName => ImageModel?.DisplayName ?? string.Empty;
 
@@ -357,21 +582,37 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public string ImageModelPath => ImageModel?.DiffusionModelPath ?? string.Empty;
 
+    public string ImageTextEncoderPath => ImageModel?.TextEncoderPath ?? string.Empty;
+
+    public string ImageVaePath => ImageModel?.VaePath ?? string.Empty;
+
+    public Uri ImageModelLogo => ModelBrandCatalog.GetLogo(ImageModel?.Id);
+
+    public string ImageModelPublisher => ModelBrandCatalog.GetPublisher(ImageModel?.Id);
+
     public string SpeechToTextModelName => AudioModel is null ? string.Empty : "NVIDIA Parakeet TDT 0.6B v3";
 
     public string SpeechToTextModelDescription => AudioModel is null
         ? string.Empty
-        : "Fast multilingual transcription with punctuation and timestamps.";
+        : _resources.GetString("SpeechToTextModelDescription");
 
     public string SpeechToTextModelPath => AudioModel?.ParakeetModelPath ?? string.Empty;
+
+    public Uri SpeechToTextModelLogo => ModelBrandCatalog.GetLogo(AudioModel is null ? null : "parakeet");
+
+    public string SpeechToTextModelPublisher => AudioModel is null ? string.Empty : ModelBrandCatalog.GetPublisher("parakeet");
 
     public string TextToSpeechModelName => AudioModel is null ? string.Empty : "Kokoro 82M";
 
     public string TextToSpeechModelDescription => AudioModel is null
         ? string.Empty
-        : "Natural local speech generation with selectable voices and speed.";
+        : _resources.GetString("TextToSpeechModelDescription");
 
     public string TextToSpeechModelPath => AudioModel?.KokoroModelPath ?? string.Empty;
+
+    public Uri TextToSpeechModelLogo => ModelBrandCatalog.GetLogo(AudioModel is null ? null : "kokoro");
+
+    public string TextToSpeechModelPublisher => AudioModel is null ? string.Empty : ModelBrandCatalog.GetPublisher("kokoro");
 
     public IReadOnlyList<KokoroVoice> Voices => AudioModel?.Voices ?? [];
 
@@ -381,12 +622,76 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public string VideoModelPath => VideoModel?.ModelPath ?? string.Empty;
 
+    public Uri VideoModelLogo => ModelBrandCatalog.GetLogo(VideoModel?.Id);
+
+    public string VideoModelPublisher => ModelBrandCatalog.GetPublisher(VideoModel?.Id);
+
     public string SelectedMeasuredSpeed => SelectedModel is null
         ? string.Empty
         : string.Format(
             CultureInfo.CurrentCulture,
             _resources.GetString("MeasuredSpeedFormat"),
             SelectedModel.MeasuredTokensPerSecond);
+
+    /// <summary>
+    /// Gets the display name of the language model that is currently loaded.
+    /// </summary>
+    public string LoadedModelName => Models.FirstOrDefault(model => model.Id == _loadedModelId)?.DisplayName
+        ?? SelectedModel?.DisplayName
+        ?? string.Empty;
+
+    /// <summary>
+    /// Gets the number of runtimes that are ready to serve requests.
+    /// </summary>
+    public int LoadedRuntimeCount => new[]
+    {
+        RuntimeStatus,
+        ImageRuntimeStatus,
+        VideoRuntimeStatus,
+        SpeechToTextRuntimeStatus,
+        TextToSpeechRuntimeStatus,
+    }.Count(status => status == RuntimeStatus.Ready);
+
+    public bool HasLoadedRuntimes => LoadedRuntimeCount > 0;
+
+    /// <summary>
+    /// Gets a comma-separated list of the models that are ready.
+    /// </summary>
+    public string LoadedModelsText
+    {
+        get
+        {
+            List<string> names = [];
+            if (RuntimeStatus == RuntimeStatus.Ready)
+            {
+                names.Add(LoadedModelName);
+            }
+
+            if (ImageRuntimeStatus == RuntimeStatus.Ready)
+            {
+                names.Add(ImageModelName);
+            }
+
+            if (VideoRuntimeStatus == RuntimeStatus.Ready)
+            {
+                names.Add(VideoModelName);
+            }
+
+            if (SpeechToTextRuntimeStatus == RuntimeStatus.Ready)
+            {
+                names.Add(_resources.GetString("SpeechToTextShortName"));
+            }
+
+            if (TextToSpeechRuntimeStatus == RuntimeStatus.Ready)
+            {
+                names.Add(_resources.GetString("TextToSpeechShortName"));
+            }
+
+            return names.Count == 0
+                ? _resources.GetString("NoModelsLoaded")
+                : string.Join(CultureInfo.CurrentCulture.TextInfo.ListSeparator + " ", names);
+        }
+    }
 
     public void Dispose()
     {
@@ -404,6 +709,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _audioRuntimeService.TextToSpeechStateChanged -= OnTextToSpeechStateChanged;
         _videoRuntimeService.StateChanged -= OnVideoRuntimeStateChanged;
         _telemetryService.MetricAdded -= OnMetricAdded;
+        Messages.CollectionChanged -= OnMessagesCollectionChanged;
+        Conversations.CollectionChanged -= OnConversationsCollectionChanged;
     }
 
     public void AttachChatMedia(string mediaPath)
@@ -429,7 +736,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         SelectedChatAttachmentPath = mediaPath;
         SelectedChatAttachmentName = Path.GetFileName(mediaPath);
-        SelectedChatAttachmentType = isVideo ? "Video attached" : isAudio ? "Audio attached" : "Image attached";
+        SelectedChatAttachmentType = _resources.GetString(
+            isVideo ? "AttachmentTypeVideo" : isAudio ? "AttachmentTypeAudio" : "AttachmentTypeImage");
     }
 
     public void ClearChatAttachment()
@@ -466,28 +774,166 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(ImageModelName));
         OnPropertyChanged(nameof(ImageModelDescription));
         OnPropertyChanged(nameof(ImageModelPath));
+        OnPropertyChanged(nameof(ImageTextEncoderPath));
+        OnPropertyChanged(nameof(ImageVaePath));
+        OnPropertyChanged(nameof(ImageModelLogo));
+        OnPropertyChanged(nameof(ImageModelPublisher));
         OnPropertyChanged(nameof(SpeechToTextModelName));
         OnPropertyChanged(nameof(SpeechToTextModelDescription));
         OnPropertyChanged(nameof(SpeechToTextModelPath));
+        OnPropertyChanged(nameof(SpeechToTextModelLogo));
+        OnPropertyChanged(nameof(SpeechToTextModelPublisher));
         OnPropertyChanged(nameof(TextToSpeechModelName));
         OnPropertyChanged(nameof(TextToSpeechModelDescription));
         OnPropertyChanged(nameof(TextToSpeechModelPath));
+        OnPropertyChanged(nameof(TextToSpeechModelLogo));
+        OnPropertyChanged(nameof(TextToSpeechModelPublisher));
         OnPropertyChanged(nameof(Voices));
         SelectedVoice = Voices.Count > 0 ? Voices[0] : null;
         OnPropertyChanged(nameof(VideoModelName));
         OnPropertyChanged(nameof(VideoModelDescription));
         OnPropertyChanged(nameof(VideoModelPath));
+        OnPropertyChanged(nameof(VideoModelLogo));
+        OnPropertyChanged(nameof(VideoModelPublisher));
         LoadImageModelCommand.NotifyCanExecuteChanged();
         LoadSpeechToTextModelCommand.NotifyCanExecuteChanged();
         LoadTextToSpeechModelCommand.NotifyCanExecuteChanged();
         LoadVideoModelCommand.NotifyCanExecuteChanged();
+        await LoadConversationsAsync(cancellationToken);
         await _apiProxyService.StartAsync(cancellationToken);
         ApiStatusText = _resources.GetString("ApiReady");
         IsNetworkAccessEnabled = _apiProxyService.IsNetworkAccessEnabled;
-        NetworkApiStatusText = IsNetworkAccessEnabled
-            ? "Network API is listening without authentication."
-            : "Network access is off. This API only accepts requests from this PC.";
+        NetworkApiStatusText = GetNetworkStatusText();
         _isInitialized = true;
+    }
+
+    /// <summary>
+    /// Discards a reply and everything after it, then asks the model for a new answer.
+    /// </summary>
+    /// <param name="message">The assistant message to regenerate.</param>
+    /// <returns>A task that completes when the new reply finishes streaming.</returns>
+    public async Task RegenerateAsync(ChatMessage message)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        ModelDefinition? model = SelectedModel;
+        int index = Messages.IndexOf(message);
+        if (model is null || !CanSendMessage() || !message.IsAssistant || index <= 0)
+        {
+            return;
+        }
+
+        while (Messages.Count > index)
+        {
+            Messages.RemoveAt(Messages.Count - 1);
+        }
+
+        await GenerateResponseAsync(model);
+    }
+
+    /// <summary>
+    /// Renames a saved conversation.
+    /// </summary>
+    /// <param name="summary">The conversation to rename.</param>
+    /// <param name="title">The new title.</param>
+    /// <returns>A task that completes when the new title is saved.</returns>
+    public async Task RenameConversationAsync(ChatConversationSummary summary, string title)
+    {
+        ArgumentNullException.ThrowIfNull(summary);
+        string trimmed = title?.Trim() ?? string.Empty;
+        if (trimmed.Length == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            ChatConversation? conversation = _currentConversation?.Id == summary.Id
+                ? _currentConversation
+                : await _chatHistoryService.LoadAsync(summary.Id, CancellationToken.None);
+            if (conversation is null)
+            {
+                Conversations.Remove(summary);
+                return;
+            }
+
+            conversation.Title = trimmed;
+            await _chatHistoryService.SaveAsync(conversation, CancellationToken.None);
+            ReplaceSummary(summary, CreateSummary(conversation));
+            HistoryErrorText = string.Empty;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            HistoryErrorText = $"{_resources.GetString("ErrorHistoryFailed")} {exception.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Builds a Markdown transcript of a saved conversation.
+    /// </summary>
+    /// <param name="summary">The conversation to export.</param>
+    /// <returns>The transcript, or <see langword="null"/> when the conversation no longer exists.</returns>
+    public async Task<string?> ExportConversationMarkdownAsync(ChatConversationSummary summary)
+    {
+        ArgumentNullException.ThrowIfNull(summary);
+        ChatConversation? conversation = _currentConversation?.Id == summary.Id
+            ? _currentConversation
+            : await _chatHistoryService.LoadAsync(summary.Id, CancellationToken.None);
+        return conversation is null
+            ? null
+            : ChatTranscriptFormatter.ToMarkdown(conversation, CultureInfo.CurrentCulture);
+    }
+
+    /// <summary>
+    /// Builds a Markdown transcript of the conversation on screen.
+    /// </summary>
+    /// <returns>The transcript and a suggested file name.</returns>
+    public (string Markdown, string FileName) ExportCurrentChatMarkdown()
+    {
+        ChatConversation conversation = CreateConversationSnapshot(SelectedModel);
+        return (
+            ChatTranscriptFormatter.ToMarkdown(conversation, CultureInfo.CurrentCulture),
+            ChatTranscriptFormatter.CreateFileName(conversation.Title));
+    }
+
+    private static ChatConversationSummary CreateSummary(ChatConversation conversation)
+    {
+        return new ChatConversationSummary
+        {
+            Id = conversation.Id,
+            Title = conversation.Title,
+            ModelName = conversation.ModelName,
+            UpdatedAt = conversation.UpdatedAt,
+        };
+    }
+
+    private static StoredChatMessage ToStored(ChatMessage message)
+    {
+        return new StoredChatMessage
+        {
+            Role = message.Role,
+            Author = message.Author,
+            Content = message.Content,
+            Reasoning = message.Reasoning,
+            ModelId = message.ModelId,
+            AttachmentFileName = message.AttachmentFileName,
+            AttachmentKind = message.AttachmentKind,
+            Timestamp = message.Timestamp,
+        };
+    }
+
+    private static ChatMessage FromStored(StoredChatMessage stored)
+    {
+        return new ChatMessage
+        {
+            Role = stored.Role,
+            Author = stored.Author,
+            Content = stored.Content,
+            Reasoning = stored.Reasoning,
+            ModelId = stored.ModelId,
+            AttachmentFileName = stored.AttachmentFileName,
+            AttachmentKind = stored.AttachmentKind,
+            Timestamp = stored.Timestamp,
+        };
     }
 
     [RelayCommand]
@@ -496,9 +942,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             await _apiProxyService.SetNetworkAccessAsync(IsNetworkAccessEnabled, CancellationToken.None);
-            NetworkApiStatusText = IsNetworkAccessEnabled
-                ? "Network API is listening without authentication."
-                : "Network access is off. This API only accepts requests from this PC.";
+            NetworkApiStatusText = GetNetworkStatusText();
             OnPropertyChanged(nameof(NetworkApiBaseUrl));
             ApiStatusText = _resources.GetString("ApiReady");
         }
@@ -513,10 +957,138 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private void NewChat()
     {
         _generationCancellation?.Cancel();
+        _chatSessionVersion++;
         UserPrompt = string.Empty;
         ClearChatAttachment();
         Messages.Clear();
         ContextUsedTokens = 0;
+        _currentConversation = null;
+        CurrentConversationSummary = null;
+    }
+
+    [RelayCommand]
+    private void ToggleHistoryPane()
+    {
+        IsHistoryPaneOpen = !IsHistoryPaneOpen;
+    }
+
+    [RelayCommand]
+    private async Task OpenConversationAsync(ChatConversationSummary? summary)
+    {
+        if (summary is null || _currentConversation?.Id == summary.Id)
+        {
+            return;
+        }
+
+        ChatConversation? conversation;
+        try
+        {
+            conversation = await _chatHistoryService.LoadAsync(summary.Id, CancellationToken.None);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            HistoryErrorText = $"{_resources.GetString("ErrorHistoryFailed")} {exception.Message}";
+            return;
+        }
+
+        if (conversation is null)
+        {
+            Conversations.Remove(summary);
+            return;
+        }
+
+        _generationCancellation?.Cancel();
+        _chatSessionVersion++;
+        UserPrompt = string.Empty;
+        ClearChatAttachment();
+        Messages.Clear();
+        foreach (StoredChatMessage stored in conversation.Messages)
+        {
+            Messages.Add(FromStored(stored));
+        }
+
+        ContextUsedTokens = 0;
+        _currentConversation = conversation;
+        CurrentConversationSummary = summary;
+        HistoryErrorText = string.Empty;
+    }
+
+    [RelayCommand]
+    private async Task DeleteConversationAsync(ChatConversationSummary? summary)
+    {
+        if (summary is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _chatHistoryService.DeleteAsync(summary.Id, CancellationToken.None);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            HistoryErrorText = $"{_resources.GetString("ErrorHistoryFailed")} {exception.Message}";
+            return;
+        }
+
+        Conversations.Remove(summary);
+        if (_currentConversation?.Id == summary.Id)
+        {
+            NewChat();
+        }
+    }
+
+    [RelayCommand]
+    private async Task ClearHistoryAsync()
+    {
+        try
+        {
+            await _chatHistoryService.DeleteAllAsync(CancellationToken.None);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            HistoryErrorText = $"{_resources.GetString("ErrorHistoryFailed")} {exception.Message}";
+            return;
+        }
+
+        Conversations.Clear();
+        _currentConversation = null;
+        CurrentConversationSummary = null;
+        HistoryErrorText = string.Empty;
+    }
+
+    [RelayCommand]
+    private void ClearActivity()
+    {
+        RequestMetrics.Clear();
+        OnPropertyChanged(nameof(HasNoMetrics));
+        OnPropertyChanged(nameof(HasMetrics));
+    }
+
+    private bool CanEjectAll()
+    {
+        return new[]
+        {
+            RuntimeStatus,
+            ImageRuntimeStatus,
+            VideoRuntimeStatus,
+            SpeechToTextRuntimeStatus,
+            TextToSpeechRuntimeStatus,
+        }.Any(status => status is RuntimeStatus.Loading or RuntimeStatus.Ready or RuntimeStatus.Error);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanEjectAll))]
+    private async Task EjectAllAsync()
+    {
+        _generationCancellation?.Cancel();
+        _imageGenerationCancellation?.Cancel();
+        _videoGenerationCancellation?.Cancel();
+        _audioOperationCancellation?.Cancel();
+        await _runtimeService.EjectAsync(CancellationToken.None);
+        await _imageRuntimeService.EjectAsync(CancellationToken.None);
+        await _videoRuntimeService.EjectAsync(CancellationToken.None);
+        await _audioRuntimeService.EjectSpeechToTextAsync(CancellationToken.None);
+        await _audioRuntimeService.EjectTextToSpeechAsync(CancellationToken.None);
     }
 
     private bool CanLoadModel()
@@ -612,15 +1184,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             AttachmentKind = attachment?.ContentPartType,
         };
         Messages.Add(userMessage);
+        UserPrompt = string.Empty;
+        ClearChatAttachment();
+        await GenerateResponseAsync(model);
+    }
+
+    private async Task GenerateResponseAsync(ModelDefinition model)
+    {
         List<ChatMessage> requestMessages = Messages.ToList();
         ChatMessage assistantMessage = new()
         {
             Role = "assistant",
-            Author = _resources.GetString("AuthorAssistant"),
+            Author = model.DisplayName,
+            ModelId = model.Id,
         };
         Messages.Add(assistantMessage);
-        UserPrompt = string.Empty;
-        ClearChatAttachment();
+        int sessionVersion = _chatSessionVersion;
         IsGenerating = true;
         _generationCancellation = new CancellationTokenSource();
 
@@ -668,6 +1247,100 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _generationCancellation.Dispose();
             _generationCancellation = null;
             IsGenerating = false;
+        }
+
+        // A new chat or a different saved conversation may have replaced this one while streaming.
+        if (sessionVersion == _chatSessionVersion)
+        {
+            await SaveCurrentConversationAsync(model);
+        }
+    }
+
+    private async Task SaveCurrentConversationAsync(ModelDefinition model)
+    {
+        if (!IsChatHistoryEnabled || Messages.Count == 0)
+        {
+            return;
+        }
+
+        ChatConversation conversation = _currentConversation ?? CreateConversationSnapshot(model);
+        conversation.ModelId = model.Id;
+        conversation.ModelName = model.DisplayName;
+        conversation.UpdatedAt = DateTimeOffset.Now;
+        conversation.Messages = Messages.Select(ToStored).ToList();
+        try
+        {
+            await _chatHistoryService.SaveAsync(conversation, CancellationToken.None);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            HistoryErrorText = $"{_resources.GetString("ErrorHistoryFailed")} {exception.Message}";
+            return;
+        }
+
+        _currentConversation = conversation;
+        HistoryErrorText = string.Empty;
+        ChatConversationSummary summary = CreateSummary(conversation);
+        ChatConversationSummary? existing = Conversations.FirstOrDefault(item => item.Id == conversation.Id);
+        if (existing is not null)
+        {
+            Conversations.Remove(existing);
+        }
+
+        Conversations.Insert(0, summary);
+        CurrentConversationSummary = summary;
+    }
+
+    private ChatConversation CreateConversationSnapshot(ModelDefinition? model)
+    {
+        DateTimeOffset now = DateTimeOffset.Now;
+        string firstPrompt = Messages.FirstOrDefault(message => !message.IsAssistant)?.Content ?? string.Empty;
+        string title = ChatTranscriptFormatter.CreateTitle(firstPrompt);
+        return new ChatConversation
+        {
+            Id = _currentConversation?.Id ?? ChatHistoryService.CreateId(),
+            Title = _currentConversation?.Title ?? (title.Length == 0 ? _resources.GetString("UntitledChat") : title),
+            ModelId = model?.Id ?? string.Empty,
+            ModelName = model?.DisplayName ?? string.Empty,
+            CreatedAt = _currentConversation?.CreatedAt ?? now,
+            UpdatedAt = now,
+            Messages = Messages.Select(ToStored).ToList(),
+        };
+    }
+
+    private async Task LoadConversationsAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            IReadOnlyList<ChatConversationSummary> summaries = await _chatHistoryService.ListAsync(cancellationToken);
+            Conversations.Clear();
+            foreach (ChatConversationSummary summary in summaries)
+            {
+                Conversations.Add(summary);
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            HistoryErrorText = $"{_resources.GetString("ErrorHistoryFailed")} {exception.Message}";
+        }
+    }
+
+    private void ReplaceSummary(ChatConversationSummary oldSummary, ChatConversationSummary newSummary)
+    {
+        int index = Conversations.IndexOf(oldSummary);
+        if (index < 0)
+        {
+            index = Conversations.ToList().FindIndex(item => item.Id == oldSummary.Id);
+        }
+
+        if (index >= 0)
+        {
+            Conversations[index] = newSummary;
+        }
+
+        if (CurrentConversationSummary?.Id == newSummary.Id)
+        {
+            CurrentConversationSummary = newSummary;
         }
     }
 
@@ -1079,17 +1752,111 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     partial void OnSelectedModelChanged(ModelDefinition? value)
     {
         OnPropertyChanged(nameof(SelectedModelPath));
+        OnPropertyChanged(nameof(SelectedVisionProjectorPath));
+        OnPropertyChanged(nameof(HasSelectedVisionProjector));
+        OnPropertyChanged(nameof(SelectedDraftModelPath));
+        OnPropertyChanged(nameof(HasSelectedDraftModel));
         OnPropertyChanged(nameof(SelectedDescription));
+        OnPropertyChanged(nameof(SelectedModelName));
+        OnPropertyChanged(nameof(SelectedModelLogo));
+        OnPropertyChanged(nameof(SelectedModelPublisher));
+        OnPropertyChanged(nameof(SelectedModelCapabilities));
         OnPropertyChanged(nameof(SelectedMeasuredSpeed));
         OnPropertyChanged(nameof(CanAttachChatMedia));
         OnPropertyChanged(nameof(CanConfigureReasoning));
+        OnPropertyChanged(nameof(ReasoningButtonText));
+        OnPropertyChanged(nameof(PromptPlaceholderText));
         OnPropertyChanged(nameof(ContextLimitTokens));
         OnPropertyChanged(nameof(ContextUsagePercent));
         OnPropertyChanged(nameof(ContextUsageText));
+        OnPropertyChanged(nameof(ContextUsageShortText));
         if (value?.HasMultimodalInput != true)
         {
             ClearChatAttachment();
         }
+    }
+
+    partial void OnIsNetworkAccessEnabledChanged(bool value)
+    {
+        // The toggle applies immediately; the initial value from the service is not a user change.
+        if (_isInitialized && value != _apiProxyService.IsNetworkAccessEnabled)
+        {
+            _ = SetNetworkAccessAsync();
+        }
+    }
+
+    partial void OnIsChatHistoryEnabledChanged(bool value)
+    {
+        if (_settingsService.Current.SaveChatHistory == value)
+        {
+            return;
+        }
+
+        _settingsService.Current.SaveChatHistory = value;
+        SaveSettings();
+    }
+
+    partial void OnThemeIndexChanged(int value)
+    {
+        string theme = value switch
+        {
+            1 => AppSettings.LightTheme,
+            2 => AppSettings.DarkTheme,
+            _ => AppSettings.SystemTheme,
+        };
+        if (theme == _settingsService.Current.Theme)
+        {
+            return;
+        }
+
+        _settingsService.Current.Theme = theme;
+        SaveSettings();
+        ThemeChanged?.Invoke(theme);
+    }
+
+    partial void OnRuntimeStatusChanged(RuntimeStatus value) => NotifyRuntimeSummaryChanged();
+
+    partial void OnImageRuntimeStatusChanged(RuntimeStatus value) => NotifyRuntimeSummaryChanged();
+
+    partial void OnVideoRuntimeStatusChanged(RuntimeStatus value) => NotifyRuntimeSummaryChanged();
+
+    partial void OnSpeechToTextRuntimeStatusChanged(RuntimeStatus value) => NotifyRuntimeSummaryChanged();
+
+    partial void OnTextToSpeechRuntimeStatusChanged(RuntimeStatus value) => NotifyRuntimeSummaryChanged();
+
+    private void NotifyRuntimeSummaryChanged()
+    {
+        OnPropertyChanged(nameof(LoadedRuntimeCount));
+        OnPropertyChanged(nameof(HasLoadedRuntimes));
+        OnPropertyChanged(nameof(LoadedModelsText));
+        EjectAllCommand.NotifyCanExecuteChanged();
+    }
+
+    private void SaveSettings()
+    {
+        try
+        {
+            _settingsService.Save();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            HistoryErrorText = exception.Message;
+        }
+    }
+
+    private string GetNetworkStatusText()
+    {
+        return _resources.GetString(IsNetworkAccessEnabled ? "NetworkApiOn" : "NetworkApiOff");
+    }
+
+    private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(HasNoMessages));
+    }
+
+    private void OnConversationsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(HasNoConversations));
     }
 
     private void OnRuntimeStateChanged(RuntimeSnapshot snapshot)
@@ -1119,13 +1886,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void ApplyRuntimeSnapshot(RuntimeSnapshot snapshot)
     {
+        _loadedModelId = snapshot.Status == RuntimeStatus.Ready ? snapshot.ModelId ?? string.Empty : string.Empty;
         RuntimeStatus = snapshot.Status;
         RuntimeStatusText = _resources.GetString($"Status{snapshot.Status}");
         if (!string.IsNullOrWhiteSpace(snapshot.Detail))
         {
             RuntimeDetail = snapshot.Detail;
         }
+        else if (snapshot.Status is RuntimeStatus.Loading or RuntimeStatus.Ready)
+        {
+            RuntimeDetail = string.Empty;
+        }
 
+        OnPropertyChanged(nameof(LoadedModelName));
+        OnPropertyChanged(nameof(LoadedModelsText));
         SendMessageCommand.NotifyCanExecuteChanged();
         LoadImageModelCommand.NotifyCanExecuteChanged();
         LoadVideoModelCommand.NotifyCanExecuteChanged();
@@ -1194,6 +1968,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
 
             OnPropertyChanged(nameof(HasNoMetrics));
+            OnPropertyChanged(nameof(HasMetrics));
         });
     }
 

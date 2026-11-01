@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="MoE.ModelManager.Views.ModelsView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:MoE.ModelManager.Controls"
+    xmlns:models="using:MoE.ModelManager.Models"
+    IsTabStop="False">
+
+  <ScrollViewer HorizontalScrollMode="Disabled" VerticalScrollBarVisibility="Auto">
+    <StackPanel
+        MaxWidth="{StaticResource PageContentMaxWidth}"
+        Padding="{StaticResource PagePadding}"
+        HorizontalAlignment="Stretch">
+      <Grid ColumnSpacing="16">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <TextBlock x:Uid="ModelsHeading" Style="{StaticResource PageTitleTextStyle}" />
+        <Button
+            x:Uid="EjectAllButton"
+            Grid.Column="1"
+            VerticalAlignment="Center"
+            AutomationProperties.AutomationId="EjectAllButton"
+            Command="{x:Bind ViewModel.EjectAllCommand}">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <FontIcon FontSize="14" Glyph="&#xE7E8;" />
+            <TextBlock x:Uid="EjectAllButtonText" />
+          </StackPanel>
+        </Button>
+      </Grid>
+      <TextBlock
+          x:Uid="ModelsSubheading"
+          Margin="0,6,0,0"
+          Style="{StaticResource SecondaryBodyTextStyle}"
+          TextWrapping="Wrap" />
+
+      <TextBlock x:Uid="GpuModelsHeading" Style="{StaticResource SectionHeaderTextStyle}" />
+      <StackPanel Spacing="8">
+        <controls:ModelCard
+            x:Uid="LanguageModelCard"
+            Description="{x:Bind ViewModel.SelectedDescription, Mode=OneWay}"
+            EjectAutomationId="ModelsEjectModelButton"
+            EjectCommand="{x:Bind ViewModel.EjectModelCommand}"
+            ErrorText="{x:Bind ViewModel.RuntimeDetail, Mode=OneWay}"
+            LoadAutomationId="ModelsLoadModelButton"
+            LoadCommand="{x:Bind ViewModel.LoadModelCommand}"
+            LogoUri="{x:Bind ViewModel.SelectedModelLogo, Mode=OneWay}"
+            ModelName="{x:Bind ViewModel.SelectedModelName, Mode=OneWay}"
+            Publisher="{x:Bind ViewModel.SelectedModelPublisher, Mode=OneWay}"
+            Status="{x:Bind ViewModel.RuntimeStatus, Mode=OneWay}"
+            StatusText="{x:Bind ViewModel.RuntimeStatusText, Mode=OneWay}"
+            Tags="{x:Bind ViewModel.SelectedModelCapabilities, Mode=OneWay}">
+          <controls:ModelCard.Accessory>
+            <ComboBox
+                x:Uid="ModelsPagePicker"
+                MinWidth="220"
+                AutomationProperties.AutomationId="ModelsPageModelPicker"
+                ItemsSource="{x:Bind ViewModel.Models, Mode=OneWay}"
+                SelectedItem="{x:Bind ViewModel.SelectedModel, Mode=TwoWay}">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="models:ModelDefinition">
+                  <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Image
+                        Width="18"
+                        Height="18"
+                        VerticalAlignment="Center"
+                        AutomationProperties.AccessibilityView="Raw">
+                      <Image.Source>
+                        <BitmapImage
+                            DecodePixelHeight="36"
+                            DecodePixelType="Logical"
+                            DecodePixelWidth="36"
+                            UriSource="{x:Bind LogoUri}" />
+                      </Image.Source>
+                    </Image>
+                    <TextBlock VerticalAlignment="Center" Text="{x:Bind DisplayName}" />
+                  </StackPanel>
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+          </controls:ModelCard.Accessory>
+          <controls:ModelCard.Details>
+            <StackPanel Spacing="4">
+              <controls:PathRow x:Uid="ModelFileRow" PathText="{x:Bind ViewModel.SelectedModelPath, Mode=OneWay}" />
+              <controls:PathRow
+                  x:Uid="VisionProjectorRow"
+                  PathText="{x:Bind ViewModel.SelectedVisionProjectorPath, Mode=OneWay}"
+                  Visibility="{x:Bind ViewModel.HasSelectedVisionProjector, Mode=OneWay}" />
+              <controls:PathRow
+                  x:Uid="DraftModelRow"
+                  PathText="{x:Bind ViewModel.SelectedDraftModelPath, Mode=OneWay}"
+                  Visibility="{x:Bind ViewModel.HasSelectedDraftModel, Mode=OneWay}" />
+            </StackPanel>
+          </controls:ModelCard.Details>
+        </controls:ModelCard>
+
+        <controls:ModelCard
+            x:Uid="ImageModelCard"
+            Description="{x:Bind ViewModel.ImageModelDescription, Mode=OneWay}"
+            EjectAutomationId="ModelsEjectImageModelButton"
+            EjectCommand="{x:Bind ViewModel.EjectImageModelCommand}"
+            ErrorText="{x:Bind ViewModel.ImageRuntimeDetail, Mode=OneWay}"
+            LoadAutomationId="ModelsLoadImageModelButton"
+            LoadCommand="{x:Bind ViewModel.LoadImageModelCommand}"
+            LogoUri="{x:Bind ViewModel.ImageModelLogo, Mode=OneWay}"
+            ModelName="{x:Bind ViewModel.ImageModelName, Mode=OneWay}"
+            Publisher="{x:Bind ViewModel.ImageModelPublisher, Mode=OneWay}"
+            Status="{x:Bind ViewModel.ImageRuntimeStatus, Mode=OneWay}"
+            StatusText="{x:Bind ViewModel.ImageRuntimeStatusText, Mode=OneWay}">
+          <controls:ModelCard.Details>
+            <StackPanel Spacing="4">
+              <controls:PathRow x:Uid="DiffusionModelRow" PathText="{x:Bind ViewModel.ImageModelPath, Mode=OneWay}" />
+              <controls:PathRow x:Uid="TextEncoderRow" PathText="{x:Bind ViewModel.ImageTextEncoderPath, Mode=OneWay}" />
+              <controls:PathRow x:Uid="VaeRow" PathText="{x:Bind ViewModel.ImageVaePath, Mode=OneWay}" />
+            </StackPanel>
+          </controls:ModelCard.Details>
+        </controls:ModelCard>
+
+        <controls:ModelCard
+            x:Uid="VideoModelCard"
+            Description="{x:Bind ViewModel.VideoModelDescription, Mode=OneWay}"
+            EjectAutomationId="ModelsEjectVideoModelButton"
+            EjectCommand="{x:Bind ViewModel.EjectVideoModelCommand}"
+            ErrorText="{x:Bind ViewModel.VideoRuntimeDetail, Mode=OneWay}"
+            LoadAutomationId="ModelsLoadVideoModelButton"
+            LoadCommand="{x:Bind ViewModel.LoadVideoModelCommand}"
+            LogoUri="{x:Bind ViewModel.VideoModelLogo, Mode=OneWay}"
+            ModelName="{x:Bind ViewModel.VideoModelName, Mode=OneWay}"
+            Publisher="{x:Bind ViewModel.VideoModelPublisher, Mode=OneWay}"
+            Status="{x:Bind ViewModel.VideoRuntimeStatus, Mode=OneWay}"
+            StatusText="{x:Bind ViewModel.VideoRuntimeStatusText, Mode=OneWay}">
+          <controls:ModelCard.Details>
+            <controls:PathRow x:Uid="ModelFolderRow" PathText="{x:Bind ViewModel.VideoModelPath, Mode=OneWay}" />
+          </controls:ModelCard.Details>
+        </controls:ModelCard>
+      </StackPanel>
+
+      <TextBlock x:Uid="SpeechModelsHeading" Style="{StaticResource SectionHeaderTextStyle}" />
+      <StackPanel Spacing="8">
+        <controls:ModelCard
+            x:Uid="SpeechToTextModelCard"
+            Description="{x:Bind ViewModel.SpeechToTextModelDescription, Mode=OneWay}"
+            EjectAutomationId="ModelsEjectSpeechToTextModelButton"
+            EjectCommand="{x:Bind ViewModel.EjectSpeechToTextModelCommand}"
+            ErrorText="{x:Bind ViewModel.SpeechToTextRuntimeDetail, Mode=OneWay}"
+            LoadAutomationId="ModelsLoadSpeechToTextModelButton"
+            LoadCommand="{x:Bind ViewModel.LoadSpeechToTextModelCommand}"
+            LogoUri="{x:Bind ViewModel.SpeechToTextModelLogo, Mode=OneWay}"
+            ModelName="{x:Bind ViewModel.SpeechToTextModelName, Mode=OneWay}"
+            Publisher="{x:Bind ViewModel.SpeechToTextModelPublisher, Mode=OneWay}"
+            Status="{x:Bind ViewModel.SpeechToTextRuntimeStatus, Mode=OneWay}"
+            StatusText="{x:Bind ViewModel.SpeechToTextRuntimeStatusText, Mode=OneWay}">
+          <controls:ModelCard.Details>
+            <controls:PathRow x:Uid="ModelFolderRow" PathText="{x:Bind ViewModel.SpeechToTextModelPath, Mode=OneWay}" />
+          </controls:ModelCard.Details>
+        </controls:ModelCard>
+
+        <controls:ModelCard
+            x:Uid="TextToSpeechModelCard"
+            Description="{x:Bind ViewModel.TextToSpeechModelDescription, Mode=OneWay}"
+            EjectAutomationId="ModelsEjectTextToSpeechModelButton"
+            EjectCommand="{x:Bind ViewModel.EjectTextToSpeechModelCommand}"
+            ErrorText="{x:Bind ViewModel.TextToSpeechRuntimeDetail, Mode=OneWay}"
+            LoadAutomationId="ModelsLoadTextToSpeechModelButton"
+            LoadCommand="{x:Bind ViewModel.LoadTextToSpeechModelCommand}"
+            LogoUri="{x:Bind ViewModel.TextToSpeechModelLogo, Mode=OneWay}"
+            ModelName="{x:Bind ViewModel.TextToSpeechModelName, Mode=OneWay}"
+            Publisher="{x:Bind ViewModel.TextToSpeechModelPublisher, Mode=OneWay}"
+            Status="{x:Bind ViewModel.TextToSpeechRuntimeStatus, Mode=OneWay}"
+            StatusText="{x:Bind ViewModel.TextToSpeechRuntimeStatusText, Mode=OneWay}">
+          <controls:ModelCard.Details>
+            <controls:PathRow x:Uid="ModelFolderRow" PathText="{x:Bind ViewModel.TextToSpeechModelPath, Mode=OneWay}" />
+          </controls:ModelCard.Details>
+        </controls:ModelCard>
+      </StackPanel>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

@@ -1,4 +1,6 @@
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
+using MoE.ModelManager.Services;
 
 namespace MoE.ModelManager.Models;
 
@@ -48,6 +50,8 @@ public sealed partial class ChatMessage : ObservableObject
     /// Gets or sets the display name of the attached media file.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAttachment))]
+    [NotifyPropertyChangedFor(nameof(AttachmentSummary))]
     public partial string? AttachmentFileName { get; set; }
 
     /// <summary>
@@ -57,9 +61,38 @@ public sealed partial class ChatMessage : ObservableObject
     public partial string? AttachmentKind { get; set; }
 
     /// <summary>
+    /// Gets or sets the identifier of the model that wrote an assistant message.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LogoUri))]
+    public partial string ModelId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the time the message was created.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TimeText))]
+    public partial DateTimeOffset Timestamp { get; set; } = DateTimeOffset.Now;
+
+    /// <summary>
     /// Gets a value indicating whether this message contains assistant Markdown.
     /// </summary>
     public bool IsAssistant => string.Equals(Role, "assistant", StringComparison.Ordinal);
+
+    /// <summary>
+    /// Gets the publisher logo of the model that wrote this message.
+    /// </summary>
+    public Uri LogoUri => ModelBrandCatalog.GetLogo(ModelId);
+
+    /// <summary>
+    /// Gets the culture-aware time the message was created.
+    /// </summary>
+    public string TimeText => Timestamp.ToLocalTime().ToString("t", CultureInfo.CurrentCulture);
+
+    /// <summary>
+    /// Gets a value indicating whether a media file was attached to this message.
+    /// </summary>
+    public bool HasAttachment => !string.IsNullOrWhiteSpace(AttachmentFileName);
 
     /// <summary>
     /// Gets a value indicating whether a thinking trace was captured for this message.
@@ -69,7 +102,5 @@ public sealed partial class ChatMessage : ObservableObject
     /// <summary>
     /// Gets the visible attachment label for a multimodal message.
     /// </summary>
-    public string AttachmentSummary => string.IsNullOrWhiteSpace(AttachmentFileName)
-        ? string.Empty
-        : $"📎 {AttachmentFileName}";
+    public string AttachmentSummary => AttachmentFileName ?? string.Empty;
 }
