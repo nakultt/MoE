@@ -1,21 +1,5 @@
 [
   {
-    "id": "qwen3.6-35b-a3b",
-    "displayName": "Qwen3.6 35B A3B",
-    "description": "Optimized 8K direct decoding; measured at 41.18 TPS.",
-    "modelPath": "E:\\Models\\Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf",
-    "visionProjectorPath": "E:\\Models\\mmproj-Qwen3.6-35B-A3B-Q8_0.gguf",
-    "visionImageTokens": 1024,
-    "supportsReasoning": true,
-    "contextSize": 8192,
-    "cpuMoeLayers": 30,
-    "cacheType": "f16",
-    "threads": 14,
-    "draftModelPath": null,
-    "draftTokens": 0,
-    "measuredTokensPerSecond": 41.18
-  },
-  {
     "id": "gemma-4-26b-a4b",
     "displayName": "Gemma 4 26B A4B",
     "description": "QAT target with Q8 MTP acceleration; 64K context measured at 50.54 TPS.",
@@ -30,6 +14,22 @@
     "draftModelPath": "E:\\Models\\gemma4\\MTP\\mtp-gemma-4-26B-A4B-it-Q8_0.gguf",
     "draftTokens": 2,
     "measuredTokensPerSecond": 50.54
+  },
+  {
+    "id": "qwen3.6-35b-a3b",
+    "displayName": "Qwen3.6 35B A3B",
+    "description": "Optimized 8K direct decoding; measured at 41.18 TPS.",
+    "modelPath": "E:\\Models\\Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf",
+    "visionProjectorPath": "E:\\Models\\mmproj-Qwen3.6-35B-A3B-Q8_0.gguf",
+    "visionImageTokens": 1024,
+    "supportsReasoning": true,
+    "contextSize": 8192,
+    "cpuMoeLayers": 30,
+    "cacheType": "f16",
+    "threads": 14,
+    "draftModelPath": null,
+    "draftTokens": 0,
+    "measuredTokensPerSecond": 41.18
   },
   {
     "id": "nemotron-3-nano-omni-30b-a3b",

@@ -22,6 +22,7 @@ public sealed class ChatHistoryServiceTests
         Assert.HasCount(2, loaded.Messages);
         Assert.AreEqual("Hello", loaded.Messages[0].Content);
         Assert.AreEqual("Thinking", loaded.Messages[1].Reasoning);
+        Assert.AreEqual(50.54, loaded.Messages[1].TokensPerSecond);
     }
 
     [TestMethod]
@@ -138,6 +139,7 @@ public sealed class ChatHistoryServiceTests
                     Reasoning = "Thinking",
                     ModelId = "qwen3.6-35b-a3b",
                     Timestamp = updatedAt,
+                    TokensPerSecond = 50.54,
                 },
             ],
         };

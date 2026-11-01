@@ -19,8 +19,6 @@ public sealed partial class ImagesView : UserControl
         ViewModel = App.Services.GetRequiredService<MainViewModel>();
         InitializeComponent();
 
-        // The view stays alive while hidden, so limit Ctrl+Enter to focus inside this view.
-        GenerateImageAccelerator.ScopeOwner = ImagesRoot;
         ViewModel.ImageGenerated += OnImageGenerated;
         Unloaded += (_, _) => ViewModel.ImageGenerated -= OnImageGenerated;
     }

@@ -90,6 +90,11 @@
                 Style="{StaticResource CaptionTextBlockStyle}"
                 Text="{x:Bind Author, Mode=OneWay}" />
             <TextBlock Style="{StaticResource SecondaryCaptionTextStyle}" Text="{x:Bind TimeText, Mode=OneWay}" />
+            <TextBlock
+                AutomationProperties.AutomationId="MessageSpeedText"
+                Style="{StaticResource SecondaryCaptionTextStyle}"
+                Text="{x:Bind SpeedText, Mode=OneWay}"
+                Visibility="{x:Bind helpers:ViewHelpers.VisibleIfText(SpeedText), Mode=OneWay}" />
           </StackPanel>
           <Expander
               x:Uid="ThinkingTraceExpander"

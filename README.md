@@ -319,8 +319,8 @@ This section provides complete, production-ready documentation of the OpenAI-com
 
 | Model ID | Type | Runtime | Description |
 | --- | --- | --- | --- |
+| `gemma-4-26b-a4b` | Text (LLM) | llama.cpp (CUDA) | Gemma 4 26B A4B, QAT UD-Q4_K_XL with Q8 MTP, 64K context, 50.54 TPS, vision-capable (default) |
 | `qwen3.6-35b-a3b` | Text (LLM) | llama.cpp (CUDA) | Qwen3.6 35B A3B, Q4_K_M, 41.18 TPS, vision-capable |
-| `gemma-4-26b-a4b` | Text (LLM) | llama.cpp (CUDA) | Gemma 4 26B A4B, QAT UD-Q4_K_XL with Q8 MTP, 64K context, 50.54 TPS, vision-capable |
 | `nemotron-3-nano-omni-30b-a3b` | Text output, omni input | llama.cpp (CUDA/CPU) | Nemotron 3 Nano Omni community GGUF; text, image, audio, and video understanding with optional reasoning |
 | `flux.2-klein-4b` | Image | stable-diffusion.cpp (CUDA) | FLUX.2 Klein 4B Distilled, Q4, four-step generation |
 | `fastwan2.2-ti2v-5b` | Video | FastVideo (WSL/CUDA) | FastWan2.2 TI2V 5B, FP8, three-step generation |

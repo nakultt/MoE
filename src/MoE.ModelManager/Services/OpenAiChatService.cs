@@ -126,12 +126,23 @@ internal sealed class OpenAiChatService : IOpenAiChatService
                 completionTokens = ReadTokenCount(usage, "completion_tokens");
             }
 
+            // llama.cpp adds its own decode timings to the final chunk.
+            double tokensPerSecond = 0;
+            if (root.TryGetProperty("timings", out JsonElement timings)
+                && timings.ValueKind == JsonValueKind.Object
+                && timings.TryGetProperty("predicted_per_second", out JsonElement speed)
+                && speed.ValueKind == JsonValueKind.Number)
+            {
+                tokensPerSecond = speed.GetDouble();
+            }
+
             return string.IsNullOrEmpty(content)
                 && string.IsNullOrEmpty(reasoning)
                 && promptTokens == 0
                 && completionTokens == 0
+                && tokensPerSecond <= 0
                     ? null
-                    : new ChatStreamDelta(content, reasoning, promptTokens, completionTokens);
+                    : new ChatStreamDelta(content, reasoning, promptTokens, completionTokens, tokensPerSecond);
         }
         catch (JsonException)
         {
