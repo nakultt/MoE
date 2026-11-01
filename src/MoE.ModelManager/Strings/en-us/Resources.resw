@@ -219,6 +219,7 @@
   <data name="SourceExternal" xml:space="preserve"><value>External</value></data>
   <data name="UnknownModel" xml:space="preserve"><value>Unknown model</value></data>
   <data name="MeasuredSpeedFormat" xml:space="preserve"><value>{0:N2} TPS measured</value></data>
+  <data name="MessageSpeedFormat" xml:space="preserve"><value>{0:N1} TPS</value></data>
   <data name="TokenMetricSummaryFormat" xml:space="preserve"><value>{0} generated · {1} prompt</value></data>
   <data name="TokenPerformanceSummaryFormat" xml:space="preserve"><value>{0:N2} TPS · {1:N2} seconds</value></data>
   <data name="ImageMetricSummaryFormat" xml:space="preserve"><value>{0} image generated</value></data>

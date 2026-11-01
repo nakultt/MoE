@@ -75,6 +75,18 @@ public sealed partial class ChatMessage : ObservableObject
     public partial DateTimeOffset Timestamp { get; set; } = DateTimeOffset.Now;
 
     /// <summary>
+    /// Gets or sets the decode speed of an assistant reply, or 0 when unknown.
+    /// </summary>
+    [ObservableProperty]
+    public partial double TokensPerSecond { get; set; }
+
+    /// <summary>
+    /// Gets or sets the localized decode speed shown beside an assistant reply.
+    /// </summary>
+    [ObservableProperty]
+    public partial string SpeedText { get; set; } = string.Empty;
+
+    /// <summary>
     /// Gets a value indicating whether this message contains assistant Markdown.
     /// </summary>
     public bool IsAssistant => string.Equals(Role, "assistant", StringComparison.Ordinal);

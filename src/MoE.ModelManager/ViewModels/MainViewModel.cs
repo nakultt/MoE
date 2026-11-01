@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.Diagnostics;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -918,12 +919,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             AttachmentFileName = message.AttachmentFileName,
             AttachmentKind = message.AttachmentKind,
             Timestamp = message.Timestamp,
+            TokensPerSecond = message.TokensPerSecond,
         };
     }
 
-    private static ChatMessage FromStored(StoredChatMessage stored)
+    private ChatMessage FromStored(StoredChatMessage stored)
     {
-        return new ChatMessage
+        ChatMessage message = new()
         {
             Role = stored.Role,
             Author = stored.Author,
@@ -934,6 +936,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             AttachmentKind = stored.AttachmentKind,
             Timestamp = stored.Timestamp,
         };
+        SetMessageSpeed(message, stored.TokensPerSecond);
+        return message;
+    }
+
+    private void SetMessageSpeed(ChatMessage message, double tokensPerSecond)
+    {
+        message.TokensPerSecond = tokensPerSecond > 0 ? tokensPerSecond : 0;
+        message.SpeedText = tokensPerSecond > 0
+            ? string.Format(CultureInfo.CurrentCulture, _resources.GetString("MessageSpeedFormat"), tokensPerSecond)
+            : string.Empty;
     }
 
     [RelayCommand]
@@ -1203,6 +1215,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IsGenerating = true;
         _generationCancellation = new CancellationTokenSource();
 
+        // Decode speed comes from the runtime's timings; a stopped reply has none, so the
+        // fallback counts streamed chunks (about one token each) from the first token onward.
+        Stopwatch decodeStopwatch = new();
+        int streamedChunks = 0;
+        int completionTokens = 0;
+        double reportedTokensPerSecond = 0;
         try
         {
             await foreach (ChatStreamDelta delta in _chatService.StreamResponseAsync(
@@ -1212,6 +1230,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 (int)ThinkingBudgetTokens,
                 _generationCancellation.Token))
             {
+                if (!string.IsNullOrEmpty(delta.Reasoning) || !string.IsNullOrEmpty(delta.Content))
+                {
+                    if (!decodeStopwatch.IsRunning)
+                    {
+                        decodeStopwatch.Start();
+                    }
+                    else
+                    {
+                        streamedChunks++;
+                    }
+                }
+
                 if (!string.IsNullOrEmpty(delta.Reasoning))
                 {
                     assistantMessage.Reasoning += delta.Reasoning;
@@ -1225,6 +1255,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 if (delta.HasUsage)
                 {
                     ContextUsedTokens = delta.PromptTokens + delta.CompletionTokens;
+                    completionTokens = delta.CompletionTokens;
+                }
+
+                if (delta.TokensPerSecond > 0)
+                {
+                    reportedTokensPerSecond = delta.TokensPerSecond;
                 }
             }
 
@@ -1244,10 +1280,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         finally
         {
+            decodeStopwatch.Stop();
             _generationCancellation.Dispose();
             _generationCancellation = null;
             IsGenerating = false;
         }
+
+        double decodeSeconds = decodeStopwatch.Elapsed.TotalSeconds;
+        int decodedTokens = completionTokens > 1 ? completionTokens - 1 : streamedChunks;
+        double tokensPerSecond = reportedTokensPerSecond > 0 ? reportedTokensPerSecond
+            : decodeSeconds > 0 && decodedTokens > 0 ? decodedTokens / decodeSeconds
+            : 0;
+        SetMessageSpeed(assistantMessage, tokensPerSecond);
 
         // A new chat or a different saved conversation may have replaced this one while streaming.
         if (sessionVersion == _chatSessionVersion)

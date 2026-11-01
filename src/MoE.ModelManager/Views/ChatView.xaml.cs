@@ -30,8 +30,6 @@ public sealed partial class ChatView : UserControl
         _resources = App.Services.GetRequiredService<IAppResources>();
         InitializeComponent();
 
-        // The view stays alive while hidden, so limit Ctrl+Enter to focus inside this view.
-        SendAccelerator.ScopeOwner = ChatRoot;
         ViewModel.Messages.CollectionChanged += OnMessagesChanged;
         ViewModel.ChatAttachmentCleared += OnChatAttachmentCleared;
         Unloaded += OnUnloaded;

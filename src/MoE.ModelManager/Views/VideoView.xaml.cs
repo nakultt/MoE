@@ -18,8 +18,6 @@ public sealed partial class VideoView : UserControl
         ViewModel = App.Services.GetRequiredService<MainViewModel>();
         InitializeComponent();
 
-        // The view stays alive while hidden, so limit Ctrl+Enter to focus inside this view.
-        GenerateVideoAccelerator.ScopeOwner = VideoRoot;
         ViewModel.VideoGenerated += OnVideoGenerated;
         Unloaded += (_, _) => ViewModel.VideoGenerated -= OnVideoGenerated;
     }

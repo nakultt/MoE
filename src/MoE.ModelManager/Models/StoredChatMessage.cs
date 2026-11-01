@@ -48,4 +48,9 @@ public sealed class StoredChatMessage
     /// Gets or sets the time the message was created.
     /// </summary>
     public DateTimeOffset Timestamp { get; set; }
+
+    /// <summary>
+    /// Gets or sets the decode speed of an assistant reply, or 0 when unknown.
+    /// </summary>
+    public double TokensPerSecond { get; set; }
 }
