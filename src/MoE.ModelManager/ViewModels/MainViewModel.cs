@@ -1325,13 +1325,23 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _currentConversation = conversation;
         HistoryErrorText = string.Empty;
         ChatConversationSummary summary = CreateSummary(conversation);
-        ChatConversationSummary? existing = Conversations.FirstOrDefault(item => item.Id == conversation.Id);
-        if (existing is not null)
+        int index = Conversations.ToList().FindIndex(item => item.Id == conversation.Id);
+        if (index < 0)
         {
-            Conversations.Remove(existing);
+            Conversations.Insert(0, summary);
+        }
+        else
+        {
+            // Update the existing row in place; replacing or re-adding it makes the History list redraw.
+            ChatConversationSummary existing = Conversations[index];
+            existing.UpdateFrom(summary);
+            summary = existing;
+            if (index > 0)
+            {
+                Conversations.Move(index, 0);
+            }
         }
 
-        Conversations.Insert(0, summary);
         CurrentConversationSummary = summary;
     }
 
@@ -1379,12 +1389,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         if (index >= 0)
         {
-            Conversations[index] = newSummary;
-        }
-
-        if (CurrentConversationSummary?.Id == newSummary.Id)
-        {
-            CurrentConversationSummary = newSummary;
+            Conversations[index].UpdateFrom(newSummary);
         }
     }
 

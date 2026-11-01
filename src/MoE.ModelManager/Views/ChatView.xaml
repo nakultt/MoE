@@ -141,137 +141,145 @@
       <ColumnDefinition Width="*" />
     </Grid.ColumnDefinitions>
 
-    <!--  Saved conversations  -->
-    <Grid
-        x:Name="HistoryPane"
-        Width="276"
-        Padding="12,24,12,12"
-        AutomationProperties.AutomationId="ChatHistoryPane"
-        BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
-        BorderThickness="0,0,1,0"
-        RowSpacing="10"
-        Visibility="{x:Bind ViewModel.IsHistoryPaneOpen, Mode=OneWay}">
-      <Grid.RowDefinitions>
-        <RowDefinition Height="Auto" />
-        <RowDefinition Height="Auto" />
-        <RowDefinition Height="*" />
-        <RowDefinition Height="Auto" />
-      </Grid.RowDefinitions>
-      <Grid Padding="4,0,0,0" ColumnSpacing="8">
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="*" />
-          <ColumnDefinition Width="Auto" />
-        </Grid.ColumnDefinitions>
+    <!--  Saved conversations. The host's width is animated so the pane slides in and out.  -->
+    <Grid x:Name="HistoryPaneHost" Width="276" HorizontalAlignment="Left">
+      <Grid
+          x:Name="HistoryPane"
+          Width="276"
+          Padding="12,24,12,12"
+          HorizontalAlignment="Right"
+          AutomationProperties.AutomationId="ChatHistoryPane"
+          BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+          BorderThickness="0,0,1,0"
+          RowSpacing="10">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid Padding="4,0,0,0" ColumnSpacing="8">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <TextBlock
+              x:Uid="HistoryHeading"
+              VerticalAlignment="Center"
+              Style="{StaticResource BodyStrongTextBlockStyle}" />
+          <Button
+              x:Uid="NewChatButton"
+              Grid.Column="1"
+              AutomationProperties.AutomationId="NewChatButton"
+              Command="{x:Bind ViewModel.NewChatCommand}">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <FontIcon FontSize="14" Glyph="&#xE710;" />
+              <TextBlock x:Uid="NewChatButtonText" />
+            </StackPanel>
+          </Button>
+        </Grid>
+        <InfoBar
+            x:Uid="HistoryOffInfoBar"
+            Grid.Row="1"
+            IsClosable="False"
+            IsOpen="{x:Bind helpers:ViewHelpers.Not(ViewModel.IsChatHistoryEnabled), Mode=OneWay}"
+            Severity="Informational">
+          <InfoBar.ActionButton>
+            <Button x:Uid="TurnOnHistoryButton" Click="OnTurnOnHistoryClicked" />
+          </InfoBar.ActionButton>
+        </InfoBar>
+        <ListView
+            x:Name="HistoryList"
+            x:Uid="HistoryList"
+            Grid.Row="2"
+            Margin="-4,0"
+            AutomationProperties.AutomationId="ChatHistoryList"
+            IsItemClickEnabled="True"
+            ItemClick="OnHistoryItemClicked"
+            ItemsSource="{x:Bind ViewModel.Conversations, Mode=OneWay}"
+            SelectedItem="{x:Bind ViewModel.CurrentConversationSummary, Mode=OneWay}"
+            SelectionMode="Single">
+          <!--  No add/delete animations: entries are updated in place after every reply.  -->
+          <ListView.ItemContainerTransitions>
+            <TransitionCollection>
+              <RepositionThemeTransition />
+            </TransitionCollection>
+          </ListView.ItemContainerTransitions>
+          <ListView.ItemTemplate>
+            <DataTemplate x:DataType="models:ChatConversationSummary">
+              <Grid Padding="0,8" ColumnSpacing="4">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center" Spacing="2">
+                  <TextBlock
+                      Text="{x:Bind Title, Mode=OneWay}"
+                      TextTrimming="CharacterEllipsis"
+                      TextWrapping="NoWrap"
+                      ToolTipService.ToolTip="{x:Bind Title, Mode=OneWay}" />
+                  <TextBlock
+                      Style="{StaticResource SecondaryCaptionTextStyle}"
+                      Text="{x:Bind Caption, Mode=OneWay}"
+                      TextTrimming="CharacterEllipsis"
+                      TextWrapping="NoWrap" />
+                </StackPanel>
+                <Button
+                    x:Uid="ConversationMoreButton"
+                    Grid.Column="1"
+                    Style="{StaticResource IconButtonStyle}">
+                  <FontIcon FontSize="14" Glyph="&#xE712;" />
+                  <Button.Flyout>
+                    <MenuFlyout Placement="BottomEdgeAlignedRight">
+                      <MenuFlyoutItem
+                          x:Uid="RenameChatMenuItem"
+                          Click="OnRenameConversationClicked"
+                          Tag="{x:Bind}">
+                        <MenuFlyoutItem.Icon>
+                          <FontIcon Glyph="&#xE8AC;" />
+                        </MenuFlyoutItem.Icon>
+                      </MenuFlyoutItem>
+                      <MenuFlyoutItem
+                          x:Uid="ExportChatMenuItem"
+                          Click="OnExportConversationClicked"
+                          Tag="{x:Bind}">
+                        <MenuFlyoutItem.Icon>
+                          <FontIcon Glyph="&#xEDE1;" />
+                        </MenuFlyoutItem.Icon>
+                      </MenuFlyoutItem>
+                      <MenuFlyoutSeparator />
+                      <MenuFlyoutItem
+                          x:Uid="DeleteChatMenuItem"
+                          Click="OnDeleteConversationClicked"
+                          Tag="{x:Bind}">
+                        <MenuFlyoutItem.Icon>
+                          <FontIcon Glyph="&#xE74D;" />
+                        </MenuFlyoutItem.Icon>
+                      </MenuFlyoutItem>
+                    </MenuFlyout>
+                  </Button.Flyout>
+                </Button>
+              </Grid>
+            </DataTemplate>
+          </ListView.ItemTemplate>
+        </ListView>
         <TextBlock
-            x:Uid="HistoryHeading"
-            VerticalAlignment="Center"
-            Style="{StaticResource BodyStrongTextBlockStyle}" />
-        <Button
-            x:Uid="NewChatButton"
-            Grid.Column="1"
-            AutomationProperties.AutomationId="NewChatButton"
-            Command="{x:Bind ViewModel.NewChatCommand}">
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <FontIcon FontSize="14" Glyph="&#xE710;" />
-            <TextBlock x:Uid="NewChatButtonText" />
-          </StackPanel>
-        </Button>
+            x:Uid="NoConversationsText"
+            Grid.Row="2"
+            Margin="4,8,4,0"
+            VerticalAlignment="Top"
+            Style="{StaticResource SecondaryBodyTextStyle}"
+            TextWrapping="Wrap"
+            Visibility="{x:Bind ViewModel.HasNoConversations, Mode=OneWay}" />
+        <TextBlock
+            Grid.Row="3"
+            Margin="4,0"
+            Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+            Style="{StaticResource CaptionTextBlockStyle}"
+            Text="{x:Bind ViewModel.HistoryErrorText, Mode=OneWay}"
+            TextWrapping="Wrap"
+            Visibility="{x:Bind ViewModel.HasHistoryError, Mode=OneWay}" />
       </Grid>
-      <InfoBar
-          x:Uid="HistoryOffInfoBar"
-          Grid.Row="1"
-          IsClosable="False"
-          IsOpen="{x:Bind helpers:ViewHelpers.Not(ViewModel.IsChatHistoryEnabled), Mode=OneWay}"
-          Severity="Informational">
-        <InfoBar.ActionButton>
-          <Button x:Uid="TurnOnHistoryButton" Click="OnTurnOnHistoryClicked" />
-        </InfoBar.ActionButton>
-      </InfoBar>
-      <ListView
-          x:Name="HistoryList"
-          x:Uid="HistoryList"
-          Grid.Row="2"
-          Margin="-4,0"
-          AutomationProperties.AutomationId="ChatHistoryList"
-          IsItemClickEnabled="True"
-          ItemClick="OnHistoryItemClicked"
-          ItemsSource="{x:Bind ViewModel.Conversations, Mode=OneWay}"
-          SelectedItem="{x:Bind ViewModel.CurrentConversationSummary, Mode=OneWay}"
-          SelectionMode="Single">
-        <ListView.ItemTemplate>
-          <DataTemplate x:DataType="models:ChatConversationSummary">
-            <Grid Padding="0,8" ColumnSpacing="4">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
-              <StackPanel VerticalAlignment="Center" Spacing="2">
-                <TextBlock
-                    Text="{x:Bind Title}"
-                    TextTrimming="CharacterEllipsis"
-                    TextWrapping="NoWrap"
-                    ToolTipService.ToolTip="{x:Bind Title}" />
-                <TextBlock
-                    Style="{StaticResource SecondaryCaptionTextStyle}"
-                    Text="{x:Bind Caption}"
-                    TextTrimming="CharacterEllipsis"
-                    TextWrapping="NoWrap" />
-              </StackPanel>
-              <Button
-                  x:Uid="ConversationMoreButton"
-                  Grid.Column="1"
-                  Style="{StaticResource IconButtonStyle}">
-                <FontIcon FontSize="14" Glyph="&#xE712;" />
-                <Button.Flyout>
-                  <MenuFlyout Placement="BottomEdgeAlignedRight">
-                    <MenuFlyoutItem
-                        x:Uid="RenameChatMenuItem"
-                        Click="OnRenameConversationClicked"
-                        Tag="{x:Bind}">
-                      <MenuFlyoutItem.Icon>
-                        <FontIcon Glyph="&#xE8AC;" />
-                      </MenuFlyoutItem.Icon>
-                    </MenuFlyoutItem>
-                    <MenuFlyoutItem
-                        x:Uid="ExportChatMenuItem"
-                        Click="OnExportConversationClicked"
-                        Tag="{x:Bind}">
-                      <MenuFlyoutItem.Icon>
-                        <FontIcon Glyph="&#xEDE1;" />
-                      </MenuFlyoutItem.Icon>
-                    </MenuFlyoutItem>
-                    <MenuFlyoutSeparator />
-                    <MenuFlyoutItem
-                        x:Uid="DeleteChatMenuItem"
-                        Click="OnDeleteConversationClicked"
-                        Tag="{x:Bind}">
-                      <MenuFlyoutItem.Icon>
-                        <FontIcon Glyph="&#xE74D;" />
-                      </MenuFlyoutItem.Icon>
-                    </MenuFlyoutItem>
-                  </MenuFlyout>
-                </Button.Flyout>
-              </Button>
-            </Grid>
-          </DataTemplate>
-        </ListView.ItemTemplate>
-      </ListView>
-      <TextBlock
-          x:Uid="NoConversationsText"
-          Grid.Row="2"
-          Margin="4,8,4,0"
-          VerticalAlignment="Top"
-          Style="{StaticResource SecondaryBodyTextStyle}"
-          TextWrapping="Wrap"
-          Visibility="{x:Bind ViewModel.HasNoConversations, Mode=OneWay}" />
-      <TextBlock
-          Grid.Row="3"
-          Margin="4,0"
-          Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-          Style="{StaticResource CaptionTextBlockStyle}"
-          Text="{x:Bind ViewModel.HistoryErrorText, Mode=OneWay}"
-          TextWrapping="Wrap"
-          Visibility="{x:Bind ViewModel.HasHistoryError, Mode=OneWay}" />
     </Grid>
 
     <!--  Conversation  -->
@@ -403,6 +411,16 @@
           ItemTemplateSelector="{StaticResource ChatMessageTemplateSelector}"
           ItemsSource="{x:Bind ViewModel.Messages, Mode=OneWay}"
           SelectionMode="None">
+        <!--  Keep the newest message at the bottom without ScrollIntoView, which jumps to an
+              unmeasured item and blanks the list for a moment on every send.  -->
+        <ListView.ItemsPanel>
+          <ItemsPanelTemplate>
+            <ItemsStackPanel ItemsUpdatingScrollMode="KeepLastItemInView" />
+          </ItemsPanelTemplate>
+        </ListView.ItemsPanel>
+        <ListView.ItemContainerTransitions>
+          <TransitionCollection />
+        </ListView.ItemContainerTransitions>
         <ListView.Resources>
           <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="Transparent" />
           <SolidColorBrush x:Key="ListViewItemBackgroundPressed" Color="Transparent" />
@@ -510,6 +528,7 @@
                 AutomationProperties.AutomationId="ChatPromptBox"
                 BorderThickness="0"
                 PlaceholderText="{x:Bind ViewModel.PromptPlaceholderText, Mode=OneWay}"
+                PreviewKeyDown="OnPromptPreviewKeyDown"
                 ScrollViewer.VerticalScrollBarVisibility="Auto"
                 Text="{x:Bind ViewModel.UserPrompt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                 TextWrapping="Wrap">
@@ -620,12 +639,6 @@
                     Style="{StaticResource AccentButtonStyle}"
                     Visibility="{x:Bind helpers:ViewHelpers.CollapsedIf(ViewModel.IsGenerating), Mode=OneWay}">
                   <FontIcon FontSize="14" Glyph="&#xE724;" />
-                  <Button.KeyboardAccelerators>
-                    <KeyboardAccelerator
-                        x:Name="SendAccelerator"
-                        Key="Enter"
-                        Modifiers="Control" />
-                  </Button.KeyboardAccelerators>
                 </Button>
                 <Button
                     x:Name="StopButton"

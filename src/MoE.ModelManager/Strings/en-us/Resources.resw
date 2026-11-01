@@ -76,10 +76,10 @@
   <data name="ThinkingBudgetSlider.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Thinking budget in tokens</value></data>
   <data name="ThinkingBudgetHint.Text" xml:space="preserve"><value>A budget stops long hidden reasoning from using up the whole reply.</value></data>
   <data name="SendButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Send message</value></data>
-  <data name="SendButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Send (Ctrl+Enter)</value></data>
+  <data name="SendButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Send (Enter)</value></data>
   <data name="StopButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Stop generating</value></data>
   <data name="StopButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Stop</value></data>
-  <data name="ChatComposerHint.Text" xml:space="preserve"><value>Ctrl+Enter to send · Everything runs locally on this PC</value></data>
+  <data name="ChatComposerHint.Text" xml:space="preserve"><value>Enter to send · Shift+Enter for a new line · Everything runs locally on this PC</value></data>
   <data name="ImagesHeading.Text" xml:space="preserve"><value>Images</value></data>
   <data name="ImagePromptBox.Header" xml:space="preserve"><value>Prompt</value></data>
   <data name="ImagePromptBox.PlaceholderText" xml:space="preserve"><value>Describe the image you want to create…</value></data>

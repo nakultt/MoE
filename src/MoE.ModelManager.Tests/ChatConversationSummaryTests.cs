@@ -40,4 +40,21 @@ public sealed class ChatConversationSummaryTests
 
         Assert.AreEqual(value.ToLocalTime().DateTime.ToString("d", Culture), text);
     }
+
+    [TestMethod]
+    public void UpdateFrom_CopiesFieldsAndRaisesChanges()
+    {
+        DateTimeOffset now = DateTimeOffset.Now;
+        ChatConversationSummary summary = new() { Id = "a", Title = "Old", ModelName = "Qwen", UpdatedAt = now.AddHours(-1) };
+        ChatConversationSummary newer = new() { Id = "a", Title = "New", ModelName = "Gemma", UpdatedAt = now };
+        List<string?> changed = [];
+        summary.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        summary.UpdateFrom(newer);
+
+        Assert.AreEqual("New", summary.Title);
+        Assert.AreEqual("Gemma", summary.ModelName);
+        Assert.AreEqual(now, summary.UpdatedAt);
+        CollectionAssert.IsSubsetOf(new[] { "Title", "Caption", "UpdatedText" }, changed);
+    }
 }

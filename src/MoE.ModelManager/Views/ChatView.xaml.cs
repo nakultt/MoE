@@ -1,7 +1,10 @@
-using System.Collections.Specialized;
+using System.ComponentModel;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Media.Imaging;
 using MoE.ModelManager.Helpers;
 using MoE.ModelManager.Models;
@@ -10,6 +13,9 @@ using MoE.ModelManager.ViewModels;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using Windows.Storage.Streams;
+using Windows.System;
+using Windows.UI.Core;
+using Windows.UI.ViewManagement;
 
 namespace MoE.ModelManager.Views;
 
@@ -22,7 +28,11 @@ public sealed partial class ChatView : UserControl
     private static readonly string[] AudioExtensions = [".wav", ".mp3", ".flac"];
     private static readonly string[] VideoExtensions = [".mp4", ".mkv", ".webm", ".mov", ".avi"];
 
+    private static readonly TimeSpan HistoryPaneDuration = TimeSpan.FromMilliseconds(250);
+
     private readonly IAppResources _resources;
+    private readonly double _historyPaneWidth;
+    private Storyboard? _historyPaneStoryboard;
 
     public ChatView()
     {
@@ -30,7 +40,9 @@ public sealed partial class ChatView : UserControl
         _resources = App.Services.GetRequiredService<IAppResources>();
         InitializeComponent();
 
-        ViewModel.Messages.CollectionChanged += OnMessagesChanged;
+        _historyPaneWidth = HistoryPane.Width;
+        SetHistoryPaneOpen(ViewModel.IsHistoryPaneOpen, animate: false);
+        ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         ViewModel.ChatAttachmentCleared += OnChatAttachmentCleared;
         Unloaded += OnUnloaded;
     }
@@ -47,15 +59,93 @@ public sealed partial class ChatView : UserControl
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
-        ViewModel.Messages.CollectionChanged -= OnMessagesChanged;
+        ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
         ViewModel.ChatAttachmentCleared -= OnChatAttachmentCleared;
     }
 
-    private void OnMessagesChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (ViewModel.Messages.Count > 0)
+        if (e.PropertyName == nameof(MainViewModel.IsHistoryPaneOpen))
         {
-            ChatList.ScrollIntoView(ViewModel.Messages[^1]);
+            SetHistoryPaneOpen(ViewModel.IsHistoryPaneOpen, animate: true);
+        }
+    }
+
+    // Slides the History pane by animating its host's width (the pane itself keeps a fixed
+    // width and is clipped), and fades it, so the conversation column resizes smoothly.
+    private void SetHistoryPaneOpen(bool isOpen, bool animate)
+    {
+        double fromWidth = HistoryPaneHost.Visibility == Visibility.Visible ? HistoryPaneHost.ActualWidth : 0;
+        double fromOpacity = HistoryPane.Opacity;
+        _historyPaneStoryboard?.Stop();
+        _historyPaneStoryboard = null;
+
+        double toWidth = isOpen ? _historyPaneWidth : 0;
+        double toOpacity = isOpen ? 1 : 0;
+        if (!animate || !new UISettings().AnimationsEnabled)
+        {
+            HistoryPaneHost.Width = toWidth;
+            HistoryPane.Opacity = toOpacity;
+            HistoryPaneHost.Visibility = isOpen ? Visibility.Visible : Visibility.Collapsed;
+            return;
+        }
+
+        HistoryPaneHost.Visibility = Visibility.Visible;
+        HistoryPaneHost.Width = fromWidth;
+        HistoryPane.Opacity = fromOpacity;
+        EasingFunctionBase easing = new CubicEase { EasingMode = isOpen ? EasingMode.EaseOut : EasingMode.EaseIn };
+        DoubleAnimation widthAnimation = new()
+        {
+            To = toWidth,
+            Duration = HistoryPaneDuration,
+            EasingFunction = easing,
+            EnableDependentAnimation = true,
+        };
+        Storyboard.SetTarget(widthAnimation, HistoryPaneHost);
+        Storyboard.SetTargetProperty(widthAnimation, nameof(Width));
+        DoubleAnimation opacityAnimation = new()
+        {
+            To = toOpacity,
+            Duration = HistoryPaneDuration,
+            EasingFunction = easing,
+        };
+        Storyboard.SetTarget(opacityAnimation, HistoryPane);
+        Storyboard.SetTargetProperty(opacityAnimation, nameof(Opacity));
+
+        Storyboard storyboard = new();
+        storyboard.Children.Add(widthAnimation);
+        storyboard.Children.Add(opacityAnimation);
+        storyboard.Completed += (_, _) =>
+        {
+            if (_historyPaneStoryboard != storyboard)
+            {
+                return;
+            }
+
+            // Hold the final values as local values so a later Stop() does not snap back.
+            _historyPaneStoryboard = null;
+            storyboard.Stop();
+            HistoryPaneHost.Width = toWidth;
+            HistoryPane.Opacity = toOpacity;
+            HistoryPaneHost.Visibility = isOpen ? Visibility.Visible : Visibility.Collapsed;
+        };
+        _historyPaneStoryboard = storyboard;
+        storyboard.Begin();
+    }
+
+    // Enter sends; Shift+Enter falls through so the TextBox inserts a new line.
+    private void OnPromptPreviewKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key != VirtualKey.Enter
+            || InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift).HasFlag(CoreVirtualKeyStates.Down))
+        {
+            return;
+        }
+
+        e.Handled = true;
+        if (ViewModel.SendMessageCommand.CanExecute(null))
+        {
+            ViewModel.SendMessageCommand.Execute(null);
         }
     }
 
