@@ -1,0 +1,647 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="MoE.ModelManager.Views.ChatView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:MoE.ModelManager.Controls"
+    xmlns:helpers="using:MoE.ModelManager.Helpers"
+    xmlns:models="using:MoE.ModelManager.Models"
+    IsTabStop="False">
+
+  <UserControl.Resources>
+    <DataTemplate x:Key="UserMessageTemplate" x:DataType="models:ChatMessage">
+      <Grid
+          MaxWidth="{StaticResource ChatColumnMaxWidth}"
+          Margin="0,10"
+          HorizontalAlignment="Stretch">
+        <StackPanel
+            MaxWidth="620"
+            HorizontalAlignment="Right"
+            Spacing="6">
+          <Border
+              Padding="10,6"
+              HorizontalAlignment="Right"
+              Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+              BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+              BorderThickness="1"
+              CornerRadius="{StaticResource ControlCornerRadius}"
+              Visibility="{x:Bind HasAttachment, Mode=OneWay}">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <FontIcon
+                  VerticalAlignment="Center"
+                  FontSize="14"
+                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                  Glyph="&#xE723;" />
+              <TextBlock
+                  VerticalAlignment="Center"
+                  Style="{StaticResource CaptionTextBlockStyle}"
+                  Text="{x:Bind AttachmentSummary, Mode=OneWay}"
+                  TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+          </Border>
+          <Border
+              Padding="14,10"
+              HorizontalAlignment="Right"
+              Background="{ThemeResource ChatUserBubbleBackgroundBrush}"
+              BorderBrush="{ThemeResource ChatUserBubbleBorderBrush}"
+              BorderThickness="1"
+              CornerRadius="8,8,2,8">
+            <controls:MarkdownRichTextBlock Markdown="{x:Bind Content, Mode=OneWay}" RenderMarkdown="False" />
+          </Border>
+          <TextBlock
+              HorizontalAlignment="Right"
+              Style="{StaticResource SecondaryCaptionTextStyle}"
+              Text="{x:Bind TimeText, Mode=OneWay}" />
+        </StackPanel>
+      </Grid>
+    </DataTemplate>
+
+    <DataTemplate x:Key="AssistantMessageTemplate" x:DataType="models:ChatMessage">
+      <Grid
+          MaxWidth="{StaticResource ChatColumnMaxWidth}"
+          Margin="0,10"
+          HorizontalAlignment="Stretch"
+          ColumnSpacing="12">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Image
+            Width="28"
+            Height="28"
+            Margin="0,2,0,0"
+            VerticalAlignment="Top"
+            AutomationProperties.AccessibilityView="Raw">
+          <Image.Source>
+            <BitmapImage
+                DecodePixelHeight="56"
+                DecodePixelType="Logical"
+                DecodePixelWidth="56"
+                UriSource="{x:Bind LogoUri, Mode=OneWay}" />
+          </Image.Source>
+        </Image>
+        <StackPanel Grid.Column="1" Spacing="8">
+          <StackPanel
+              Margin="0,5,0,0"
+              Orientation="Horizontal"
+              Spacing="8">
+            <TextBlock
+                FontWeight="SemiBold"
+                Style="{StaticResource CaptionTextBlockStyle}"
+                Text="{x:Bind Author, Mode=OneWay}" />
+            <TextBlock Style="{StaticResource SecondaryCaptionTextStyle}" Text="{x:Bind TimeText, Mode=OneWay}" />
+          </StackPanel>
+          <Expander
+              x:Uid="ThinkingTraceExpander"
+              MaxWidth="560"
+              HorizontalAlignment="Left"
+              HorizontalContentAlignment="Stretch"
+              Visibility="{x:Bind HasReasoning, Mode=OneWay}">
+            <TextBlock
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                IsTextSelectionEnabled="True"
+                Text="{x:Bind Reasoning, Mode=OneWay}"
+                TextWrapping="Wrap" />
+          </Expander>
+          <controls:MarkdownRichTextBlock Markdown="{x:Bind Content, Mode=OneWay}" RenderMarkdown="True" />
+          <StackPanel Orientation="Horizontal" Spacing="2">
+            <Button
+                x:Uid="CopyMessageButton"
+                Click="OnCopyMessageClicked"
+                Style="{StaticResource IconButtonStyle}"
+                Tag="{x:Bind}">
+              <FontIcon FontSize="14" Glyph="&#xE8C8;" />
+            </Button>
+            <Button
+                x:Uid="RegenerateMessageButton"
+                Click="OnRegenerateMessageClicked"
+                Style="{StaticResource IconButtonStyle}"
+                Tag="{x:Bind}">
+              <FontIcon FontSize="14" Glyph="&#xE72C;" />
+            </Button>
+          </StackPanel>
+        </StackPanel>
+      </Grid>
+    </DataTemplate>
+
+    <helpers:ChatMessageTemplateSelector
+        x:Key="ChatMessageTemplateSelector"
+        AssistantTemplate="{StaticResource AssistantMessageTemplate}"
+        UserTemplate="{StaticResource UserMessageTemplate}" />
+  </UserControl.Resources>
+
+  <Grid x:Name="ChatRoot">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="Auto" />
+      <ColumnDefinition Width="*" />
+    </Grid.ColumnDefinitions>
+
+    <!--  Saved conversations  -->
+    <Grid
+        x:Name="HistoryPane"
+        Width="276"
+        Padding="12,24,12,12"
+        AutomationProperties.AutomationId="ChatHistoryPane"
+        BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+        BorderThickness="0,0,1,0"
+        RowSpacing="10"
+        Visibility="{x:Bind ViewModel.IsHistoryPaneOpen, Mode=OneWay}">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+      <Grid Padding="4,0,0,0" ColumnSpacing="8">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <TextBlock
+            x:Uid="HistoryHeading"
+            VerticalAlignment="Center"
+            Style="{StaticResource BodyStrongTextBlockStyle}" />
+        <Button
+            x:Uid="NewChatButton"
+            Grid.Column="1"
+            AutomationProperties.AutomationId="NewChatButton"
+            Command="{x:Bind ViewModel.NewChatCommand}">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <FontIcon FontSize="14" Glyph="&#xE710;" />
+            <TextBlock x:Uid="NewChatButtonText" />
+          </StackPanel>
+        </Button>
+      </Grid>
+      <InfoBar
+          x:Uid="HistoryOffInfoBar"
+          Grid.Row="1"
+          IsClosable="False"
+          IsOpen="{x:Bind helpers:ViewHelpers.Not(ViewModel.IsChatHistoryEnabled), Mode=OneWay}"
+          Severity="Informational">
+        <InfoBar.ActionButton>
+          <Button x:Uid="TurnOnHistoryButton" Click="OnTurnOnHistoryClicked" />
+        </InfoBar.ActionButton>
+      </InfoBar>
+      <ListView
+          x:Name="HistoryList"
+          x:Uid="HistoryList"
+          Grid.Row="2"
+          Margin="-4,0"
+          AutomationProperties.AutomationId="ChatHistoryList"
+          IsItemClickEnabled="True"
+          ItemClick="OnHistoryItemClicked"
+          ItemsSource="{x:Bind ViewModel.Conversations, Mode=OneWay}"
+          SelectedItem="{x:Bind ViewModel.CurrentConversationSummary, Mode=OneWay}"
+          SelectionMode="Single">
+        <ListView.ItemTemplate>
+          <DataTemplate x:DataType="models:ChatConversationSummary">
+            <Grid Padding="0,8" ColumnSpacing="4">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <StackPanel VerticalAlignment="Center" Spacing="2">
+                <TextBlock
+                    Text="{x:Bind Title}"
+                    TextTrimming="CharacterEllipsis"
+                    TextWrapping="NoWrap"
+                    ToolTipService.ToolTip="{x:Bind Title}" />
+                <TextBlock
+                    Style="{StaticResource SecondaryCaptionTextStyle}"
+                    Text="{x:Bind Caption}"
+                    TextTrimming="CharacterEllipsis"
+                    TextWrapping="NoWrap" />
+              </StackPanel>
+              <Button
+                  x:Uid="ConversationMoreButton"
+                  Grid.Column="1"
+                  Style="{StaticResource IconButtonStyle}">
+                <FontIcon FontSize="14" Glyph="&#xE712;" />
+                <Button.Flyout>
+                  <MenuFlyout Placement="BottomEdgeAlignedRight">
+                    <MenuFlyoutItem
+                        x:Uid="RenameChatMenuItem"
+                        Click="OnRenameConversationClicked"
+                        Tag="{x:Bind}">
+                      <MenuFlyoutItem.Icon>
+                        <FontIcon Glyph="&#xE8AC;" />
+                      </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutItem
+                        x:Uid="ExportChatMenuItem"
+                        Click="OnExportConversationClicked"
+                        Tag="{x:Bind}">
+                      <MenuFlyoutItem.Icon>
+                        <FontIcon Glyph="&#xEDE1;" />
+                      </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutSeparator />
+                    <MenuFlyoutItem
+                        x:Uid="DeleteChatMenuItem"
+                        Click="OnDeleteConversationClicked"
+                        Tag="{x:Bind}">
+                      <MenuFlyoutItem.Icon>
+                        <FontIcon Glyph="&#xE74D;" />
+                      </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                  </MenuFlyout>
+                </Button.Flyout>
+              </Button>
+            </Grid>
+          </DataTemplate>
+        </ListView.ItemTemplate>
+      </ListView>
+      <TextBlock
+          x:Uid="NoConversationsText"
+          Grid.Row="2"
+          Margin="4,8,4,0"
+          VerticalAlignment="Top"
+          Style="{StaticResource SecondaryBodyTextStyle}"
+          TextWrapping="Wrap"
+          Visibility="{x:Bind ViewModel.HasNoConversations, Mode=OneWay}" />
+      <TextBlock
+          Grid.Row="3"
+          Margin="4,0"
+          Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+          Style="{StaticResource CaptionTextBlockStyle}"
+          Text="{x:Bind ViewModel.HistoryErrorText, Mode=OneWay}"
+          TextWrapping="Wrap"
+          Visibility="{x:Bind ViewModel.HasHistoryError, Mode=OneWay}" />
+    </Grid>
+
+    <!--  Conversation  -->
+    <Grid Grid.Column="1">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+
+      <Grid Padding="24,24,32,12" ColumnSpacing="10">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <Button
+            x:Uid="ToggleHistoryButton"
+            VerticalAlignment="Center"
+            AutomationProperties.AutomationId="ToggleHistoryButton"
+            Command="{x:Bind ViewModel.ToggleHistoryPaneCommand}"
+            Style="{StaticResource IconButtonStyle}">
+          <FontIcon FontSize="16" Glyph="&#xE81C;" />
+        </Button>
+        <TextBlock
+            x:Uid="ChatHeading"
+            Grid.Column="1"
+            VerticalAlignment="Center"
+            Style="{StaticResource PageTitleTextStyle}" />
+        <ComboBox
+            x:Name="ModelPicker"
+            x:Uid="ModelPicker"
+            Grid.Column="2"
+            MinWidth="240"
+            VerticalAlignment="Center"
+            AccessKey="M"
+            AutomationProperties.AutomationId="ModelPicker"
+            ItemsSource="{x:Bind ViewModel.Models, Mode=OneWay}"
+            SelectedItem="{x:Bind ViewModel.SelectedModel, Mode=TwoWay}">
+          <ComboBox.ItemTemplate>
+            <DataTemplate x:DataType="models:ModelDefinition">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <Image
+                    Width="18"
+                    Height="18"
+                    VerticalAlignment="Center"
+                    AutomationProperties.AccessibilityView="Raw">
+                  <Image.Source>
+                    <BitmapImage
+                        DecodePixelHeight="36"
+                        DecodePixelType="Logical"
+                        DecodePixelWidth="36"
+                        UriSource="{x:Bind LogoUri}" />
+                  </Image.Source>
+                </Image>
+                <TextBlock VerticalAlignment="Center" Text="{x:Bind DisplayName}" />
+              </StackPanel>
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+        <controls:StatusBadge
+            Grid.Column="3"
+            Status="{x:Bind ViewModel.RuntimeStatus, Mode=OneWay}"
+            Text="{x:Bind ViewModel.RuntimeStatusText, Mode=OneWay}" />
+        <Grid Grid.Column="4" VerticalAlignment="Center">
+          <Button
+              x:Name="LoadButton"
+              x:Uid="LoadButton"
+              MinWidth="84"
+              AccessKey="L"
+              AutomationProperties.AutomationId="LoadModelButton"
+              Command="{x:Bind ViewModel.LoadModelCommand}"
+              Style="{StaticResource AccentButtonStyle}"
+              Visibility="{x:Bind helpers:ViewHelpers.LoadVisibility(ViewModel.RuntimeStatus), Mode=OneWay}" />
+          <Button
+              x:Name="EjectButton"
+              x:Uid="EjectButton"
+              MinWidth="84"
+              AccessKey="E"
+              AutomationProperties.AutomationId="EjectModelButton"
+              Command="{x:Bind ViewModel.EjectModelCommand}"
+              Visibility="{x:Bind helpers:ViewHelpers.EjectVisibility(ViewModel.RuntimeStatus), Mode=OneWay}" />
+        </Grid>
+        <Button
+            x:Uid="ChatMoreButton"
+            Grid.Column="5"
+            VerticalAlignment="Center"
+            AutomationProperties.AutomationId="ChatMoreButton"
+            Style="{StaticResource IconButtonStyle}">
+          <FontIcon FontSize="16" Glyph="&#xE712;" />
+          <Button.Flyout>
+            <MenuFlyout Placement="BottomEdgeAlignedRight">
+              <MenuFlyoutItem x:Uid="ExportCurrentChatMenuItem" Click="OnExportCurrentChatClicked">
+                <MenuFlyoutItem.Icon>
+                  <FontIcon Glyph="&#xEDE1;" />
+                </MenuFlyoutItem.Icon>
+              </MenuFlyoutItem>
+              <MenuFlyoutItem x:Uid="ClearChatMenuItem" Command="{x:Bind ViewModel.NewChatCommand}">
+                <MenuFlyoutItem.Icon>
+                  <FontIcon Glyph="&#xE710;" />
+                </MenuFlyoutItem.Icon>
+              </MenuFlyoutItem>
+            </MenuFlyout>
+          </Button.Flyout>
+        </Button>
+      </Grid>
+
+      <InfoBar
+          Grid.Row="1"
+          Margin="24,0,32,8"
+          IsClosable="False"
+          IsOpen="{x:Bind ViewModel.HasRuntimeDetail, Mode=OneWay}"
+          Message="{x:Bind ViewModel.RuntimeDetail, Mode=OneWay}"
+          Severity="Error"
+          Visibility="{x:Bind ViewModel.HasRuntimeDetail, Mode=OneWay}" />
+
+      <ListView
+          x:Name="ChatList"
+          x:Uid="ChatList"
+          Grid.Row="2"
+          Padding="0,8,0,16"
+          AutomationProperties.AutomationId="ChatMessageList"
+          IsItemClickEnabled="False"
+          ItemContainerStyle="{StaticResource ChatListViewItemStyle}"
+          ItemTemplateSelector="{StaticResource ChatMessageTemplateSelector}"
+          ItemsSource="{x:Bind ViewModel.Messages, Mode=OneWay}"
+          SelectionMode="None">
+        <ListView.Resources>
+          <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="Transparent" />
+          <SolidColorBrush x:Key="ListViewItemBackgroundPressed" Color="Transparent" />
+        </ListView.Resources>
+      </ListView>
+
+      <StackPanel
+          Grid.Row="2"
+          MaxWidth="440"
+          Padding="24"
+          HorizontalAlignment="Center"
+          VerticalAlignment="Center"
+          Spacing="10"
+          Visibility="{x:Bind ViewModel.HasNoMessages, Mode=OneWay}">
+        <Image
+            Width="56"
+            Height="56"
+            HorizontalAlignment="Center"
+            AutomationProperties.AccessibilityView="Raw">
+          <Image.Source>
+            <BitmapImage
+                DecodePixelHeight="112"
+                DecodePixelType="Logical"
+                DecodePixelWidth="112"
+                UriSource="{x:Bind ViewModel.SelectedModelLogo, Mode=OneWay}" />
+          </Image.Source>
+        </Image>
+        <TextBlock
+            x:Uid="ChatEmptyTitle"
+            HorizontalAlignment="Center"
+            Style="{StaticResource SubtitleTextBlockStyle}"
+            TextAlignment="Center" />
+        <TextBlock
+            x:Uid="ChatEmptyHint"
+            HorizontalAlignment="Center"
+            Style="{StaticResource SecondaryBodyTextStyle}"
+            TextAlignment="Center"
+            TextWrapping="Wrap" />
+      </StackPanel>
+
+      <!--  Composer  -->
+      <StackPanel
+          Grid.Row="3"
+          MaxWidth="{StaticResource ChatColumnMaxWidth}"
+          Margin="24,0,24,16"
+          Spacing="8">
+        <Border
+            x:Name="ChatImageAttachmentPanel"
+            Padding="8"
+            Style="{StaticResource CardBorderStyle}"
+            Visibility="Collapsed">
+          <Grid ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Grid
+                Width="56"
+                Height="44"
+                Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                CornerRadius="{StaticResource ControlCornerRadius}">
+              <FontIcon
+                  FontSize="16"
+                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                  Glyph="&#xE723;" />
+              <Image
+                  x:Name="ChatImagePreview"
+                  x:Uid="ChatImagePreview"
+                  Stretch="UniformToFill" />
+            </Grid>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+              <TextBlock
+                  FontWeight="SemiBold"
+                  Text="{x:Bind ViewModel.SelectedChatAttachmentType, Mode=OneWay}" />
+              <TextBlock
+                  Style="{StaticResource SecondaryCaptionTextStyle}"
+                  Text="{x:Bind ViewModel.SelectedChatAttachmentName, Mode=OneWay}"
+                  TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+            <Button
+                x:Uid="RemoveChatImageButton"
+                Grid.Column="2"
+                VerticalAlignment="Center"
+                Click="OnRemoveChatMediaClicked"
+                Style="{StaticResource IconButtonStyle}">
+              <FontIcon FontSize="14" Glyph="&#xE711;" />
+            </Button>
+          </Grid>
+        </Border>
+
+        <Border Padding="14,10,10,10" Style="{StaticResource CardBorderStyle}">
+          <Grid RowSpacing="6">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <TextBox
+                x:Name="PromptBox"
+                x:Uid="PromptBox"
+                MinHeight="44"
+                MaxHeight="200"
+                Padding="0,6"
+                AcceptsReturn="True"
+                AutomationProperties.AutomationId="ChatPromptBox"
+                BorderThickness="0"
+                PlaceholderText="{x:Bind ViewModel.PromptPlaceholderText, Mode=OneWay}"
+                ScrollViewer.VerticalScrollBarVisibility="Auto"
+                Text="{x:Bind ViewModel.UserPrompt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                TextWrapping="Wrap">
+              <TextBox.Resources>
+                <SolidColorBrush x:Key="TextControlBackground" Color="Transparent" />
+                <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent" />
+                <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent" />
+                <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent" />
+                <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent" />
+                <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent" />
+                <SolidColorBrush x:Key="TextControlElevationBorderBrush" Color="Transparent" />
+                <SolidColorBrush x:Key="TextControlElevationBorderFocusedBrush" Color="Transparent" />
+              </TextBox.Resources>
+            </TextBox>
+            <Grid Grid.Row="1" ColumnSpacing="6">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <Button
+                  x:Uid="AttachMediaButton"
+                  AutomationProperties.AutomationId="AttachChatImageButton"
+                  Click="OnSelectChatMediaClicked"
+                  IsEnabled="{x:Bind ViewModel.CanAttachChatMedia, Mode=OneWay}"
+                  Style="{StaticResource IconButtonStyle}">
+                <FontIcon FontSize="16" Glyph="&#xE723;" />
+              </Button>
+              <DropDownButton
+                  x:Uid="ReasoningDropDown"
+                  Grid.Column="1"
+                  AutomationProperties.AutomationId="ReasoningDropDown"
+                  IsEnabled="{x:Bind ViewModel.CanConfigureReasoning, Mode=OneWay}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <FontIcon FontSize="14" Glyph="&#xEA80;" />
+                  <TextBlock Text="{x:Bind ViewModel.ReasoningButtonText, Mode=OneWay}" />
+                </StackPanel>
+                <DropDownButton.Flyout>
+                  <Flyout Placement="TopEdgeAlignedLeft">
+                    <StackPanel Width="300" Spacing="12">
+                      <ToggleSwitch
+                          x:Uid="ReasoningToggle"
+                          AutomationProperties.AutomationId="ReasoningToggle"
+                          IsOn="{x:Bind ViewModel.IsReasoningEnabled, Mode=TwoWay}" />
+                      <StackPanel Spacing="4" Visibility="{x:Bind ViewModel.IsReasoningEnabled, Mode=OneWay}">
+                        <Grid>
+                          <TextBlock x:Uid="ThinkingBudgetLabel" />
+                          <TextBlock
+                              HorizontalAlignment="Right"
+                              Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                              Text="{x:Bind ViewModel.ThinkingBudgetText, Mode=OneWay}" />
+                        </Grid>
+                        <Slider
+                            x:Uid="ThinkingBudgetSlider"
+                            AutomationProperties.AutomationId="ThinkingBudgetSlider"
+                            Maximum="4096"
+                            Minimum="0"
+                            StepFrequency="64"
+                            TickFrequency="512"
+                            TickPlacement="Outside"
+                            Value="{x:Bind ViewModel.ThinkingBudgetTokens, Mode=TwoWay}" />
+                        <TextBlock
+                            x:Uid="ThinkingBudgetHint"
+                            Style="{StaticResource SecondaryCaptionTextStyle}"
+                            TextWrapping="Wrap" />
+                      </StackPanel>
+                    </StackPanel>
+                  </Flyout>
+                </DropDownButton.Flyout>
+              </DropDownButton>
+              <StackPanel
+                  Grid.Column="3"
+                  Margin="0,0,6,0"
+                  VerticalAlignment="Center"
+                  AutomationProperties.AutomationId="ContextUsageText"
+                  AutomationProperties.Name="{x:Bind ViewModel.ContextUsageText, Mode=OneWay}"
+                  Orientation="Horizontal"
+                  Spacing="8"
+                  ToolTipService.ToolTip="{x:Bind ViewModel.ContextUsageText, Mode=OneWay}">
+                <ProgressRing
+                    Width="16"
+                    Height="16"
+                    MinWidth="16"
+                    MinHeight="16"
+                    AutomationProperties.AutomationId="ContextUsageBar"
+                    Background="{ThemeResource ControlStrongFillColorDisabledBrush}"
+                    IsIndeterminate="False"
+                    Maximum="100"
+                    Minimum="0"
+                    Value="{x:Bind ViewModel.ContextUsagePercent, Mode=OneWay}" />
+                <TextBlock
+                    VerticalAlignment="Center"
+                    Style="{StaticResource SecondaryCaptionTextStyle}"
+                    Text="{x:Bind ViewModel.ContextUsageShortText, Mode=OneWay}" />
+              </StackPanel>
+              <Grid Grid.Column="4">
+                <Button
+                    x:Name="SendButton"
+                    x:Uid="SendButton"
+                    Width="40"
+                    Height="32"
+                    Padding="0"
+                    AccessKey="S"
+                    AutomationProperties.AutomationId="SendMessageButton"
+                    Command="{x:Bind ViewModel.SendMessageCommand}"
+                    Style="{StaticResource AccentButtonStyle}"
+                    Visibility="{x:Bind helpers:ViewHelpers.CollapsedIf(ViewModel.IsGenerating), Mode=OneWay}">
+                  <FontIcon FontSize="14" Glyph="&#xE724;" />
+                  <Button.KeyboardAccelerators>
+                    <KeyboardAccelerator
+                        x:Name="SendAccelerator"
+                        Key="Enter"
+                        Modifiers="Control" />
+                  </Button.KeyboardAccelerators>
+                </Button>
+                <Button
+                    x:Name="StopButton"
+                    x:Uid="StopButton"
+                    Width="40"
+                    Height="32"
+                    Padding="0"
+                    AutomationProperties.AutomationId="StopGenerationButton"
+                    Command="{x:Bind ViewModel.CancelGenerationCommand}"
+                    Visibility="{x:Bind ViewModel.IsGenerating, Mode=OneWay}">
+                  <FontIcon FontSize="14" Glyph="&#xE71A;" />
+                </Button>
+              </Grid>
+            </Grid>
+          </Grid>
+        </Border>
+        <TextBlock
+            x:Uid="ChatComposerHint"
+            HorizontalAlignment="Center"
+            Style="{StaticResource SecondaryCaptionTextStyle}" />
+      </StackPanel>
+    </Grid>
+  </Grid>
+</UserControl>

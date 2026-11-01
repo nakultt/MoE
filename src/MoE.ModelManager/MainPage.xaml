@@ -5,804 +5,112 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:controls="using:MoE.ModelManager.Controls"
-    xmlns:models="using:MoE.ModelManager.Models"
+    xmlns:views="using:MoE.ModelManager.Views"
     mc:Ignorable="d">
 
-  <Grid Padding="24" ColumnSpacing="16" RowSpacing="18">
-    <Grid.ColumnDefinitions>
-      <ColumnDefinition Width="300" />
-      <ColumnDefinition Width="*" />
-      <ColumnDefinition Width="380" />
-    </Grid.ColumnDefinitions>
-    <Grid.RowDefinitions>
-      <RowDefinition Height="Auto" />
-      <RowDefinition Height="*" />
-    </Grid.RowDefinitions>
+  <NavigationView
+      x:Name="NavView"
+      AutomationProperties.AutomationId="MainNavigation"
+      CompactModeThresholdWidth="720"
+      ExpandedModeThresholdWidth="1180"
+      IsBackButtonVisible="Collapsed"
+      IsPaneToggleButtonVisible="False"
+      IsSettingsVisible="True"
+      IsTitleBarAutoPaddingEnabled="False"
+      OpenPaneLength="260"
+      PaneDisplayMode="Auto"
+      SelectionChanged="OnNavigationSelectionChanged">
+    <NavigationView.MenuItems>
+      <NavigationViewItem
+          x:Name="ChatNavItem"
+          x:Uid="ChatNavItem"
+          AutomationProperties.AutomationId="ChatTab"
+          Tag="Chat">
+        <NavigationViewItem.Icon>
+          <FontIcon Glyph="&#xE8BD;" />
+        </NavigationViewItem.Icon>
+      </NavigationViewItem>
+      <NavigationViewItem
+          x:Uid="ImagesNavItem"
+          AutomationProperties.AutomationId="ImagesTab"
+          Tag="Images">
+        <NavigationViewItem.Icon>
+          <FontIcon Glyph="&#xEB9F;" />
+        </NavigationViewItem.Icon>
+      </NavigationViewItem>
+      <NavigationViewItem
+          x:Uid="VideoNavItem"
+          AutomationProperties.AutomationId="VideosTab"
+          Tag="Video">
+        <NavigationViewItem.Icon>
+          <FontIcon Glyph="&#xE714;" />
+        </NavigationViewItem.Icon>
+      </NavigationViewItem>
+      <NavigationViewItem
+          x:Uid="AudioNavItem"
+          AutomationProperties.AutomationId="AudioTab"
+          Tag="Audio">
+        <NavigationViewItem.Icon>
+          <FontIcon Glyph="&#xE720;" />
+        </NavigationViewItem.Icon>
+      </NavigationViewItem>
+      <NavigationViewItemHeader x:Uid="ManageNavHeader" />
+      <NavigationViewItem
+          x:Uid="ModelsNavItem"
+          AutomationProperties.AutomationId="ModelsTab"
+          Tag="Models">
+        <NavigationViewItem.Icon>
+          <FontIcon Glyph="&#xE8F1;" />
+        </NavigationViewItem.Icon>
+        <NavigationViewItem.InfoBadge>
+          <InfoBadge Value="{x:Bind ViewModel.LoadedRuntimeCount, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasLoadedRuntimes, Mode=OneWay}" />
+        </NavigationViewItem.InfoBadge>
+      </NavigationViewItem>
+      <NavigationViewItem
+          x:Uid="ApiNavItem"
+          AutomationProperties.AutomationId="ApiTab"
+          Tag="Api">
+        <NavigationViewItem.Icon>
+          <FontIcon Glyph="&#xE943;" />
+        </NavigationViewItem.Icon>
+      </NavigationViewItem>
+    </NavigationView.MenuItems>
 
-    <StackPanel Grid.ColumnSpan="3" Spacing="4">
-      <TextBlock x:Uid="AppHeading" Style="{ThemeResource TitleTextBlockStyle}" />
-      <TextBlock
-          x:Uid="AppSubheading"
-          Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-          Style="{ThemeResource BodyTextBlockStyle}" />
-    </StackPanel>
-
-    <Border
-        Grid.Row="1"
-        Grid.Column="0"
-        Padding="18"
-        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-        BorderThickness="1"
-        CornerRadius="10">
-      <ScrollViewer HorizontalScrollMode="Disabled" VerticalScrollBarVisibility="Auto">
-      <StackPanel Spacing="14">
-        <TextBlock x:Uid="ModelsHeading" Style="{ThemeResource SubtitleTextBlockStyle}" />
-        <ComboBox
-            x:Name="ModelPicker"
-            x:Uid="ModelPicker"
-            AutomationProperties.AutomationId="ModelPicker"
-            AccessKey="M"
-            ItemsSource="{x:Bind ViewModel.Models, Mode=OneWay}"
-            SelectedItem="{x:Bind ViewModel.SelectedModel, Mode=TwoWay}">
-          <ComboBox.ItemTemplate>
-            <DataTemplate x:DataType="models:ModelDefinition">
-              <TextBlock Text="{x:Bind DisplayName}" />
-            </DataTemplate>
-          </ComboBox.ItemTemplate>
-        </ComboBox>
-        <TextBlock
-            FontWeight="SemiBold"
-            Text="{x:Bind ViewModel.SelectedDescription, Mode=OneWay}"
-            TextWrapping="Wrap" />
-        <TextBlock
-            Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
-            Text="{x:Bind ViewModel.SelectedMeasuredSpeed, Mode=OneWay}" />
-        <Grid ColumnSpacing="8">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="Auto" />
-          </Grid.ColumnDefinitions>
-          <Button
-              x:Name="LoadButton"
-              x:Uid="LoadButton"
-              AutomationProperties.AutomationId="LoadModelButton"
-              AccessKey="L"
-              Command="{x:Bind ViewModel.LoadModelCommand}"
-              HorizontalAlignment="Stretch"
-              HorizontalContentAlignment="Center"
-              Style="{StaticResource AccentButtonStyle}" />
-          <Button
-              x:Name="EjectButton"
-              x:Uid="EjectButton"
-              Grid.Column="1"
-              AutomationProperties.AutomationId="EjectModelButton"
-              AccessKey="E"
-              Command="{x:Bind ViewModel.EjectModelCommand}" />
-        </Grid>
-        <Border
-            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-            BorderThickness="0,1,0,0" />
-        <TextBlock
-            x:Uid="RuntimeStatusLabel"
-            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-        <TextBlock
-            FontSize="16"
-            FontWeight="SemiBold"
-            Text="{x:Bind ViewModel.RuntimeStatusText, Mode=OneWay}"
-            TextWrapping="Wrap" />
-        <TextBlock
-            Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-            Text="{x:Bind ViewModel.RuntimeDetail, Mode=OneWay}"
-            TextWrapping="Wrap" />
-        <TextBlock
-            x:Uid="ModelPathLabel"
-            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-        <TextBlock
-            FontFamily="Consolas"
-            FontSize="11"
-            IsTextSelectionEnabled="True"
-            Text="{x:Bind ViewModel.SelectedModelPath, Mode=OneWay}"
-            TextWrapping="Wrap" />
-        <Border
-            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-            BorderThickness="0,1,0,0" />
-        <TextBlock x:Uid="ImageModelHeading" Style="{ThemeResource SubtitleTextBlockStyle}" />
-        <TextBlock FontWeight="SemiBold" Text="{x:Bind ViewModel.ImageModelName, Mode=OneWay}" TextWrapping="Wrap" />
-        <TextBlock Text="{x:Bind ViewModel.ImageModelDescription, Mode=OneWay}" TextWrapping="Wrap" />
-        <Grid ColumnSpacing="8">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="Auto" />
-          </Grid.ColumnDefinitions>
-          <Button
-              x:Uid="LoadImageModelButton"
-              AutomationProperties.AutomationId="LoadImageModelButton"
-              AccessKey="I"
-              Command="{x:Bind ViewModel.LoadImageModelCommand}"
-              HorizontalAlignment="Stretch"
-              HorizontalContentAlignment="Center"
-              Style="{StaticResource AccentButtonStyle}" />
-          <Button
-              x:Uid="EjectImageModelButton"
-              Grid.Column="1"
-              AutomationProperties.AutomationId="EjectImageModelButton"
-              Command="{x:Bind ViewModel.EjectImageModelCommand}" />
-        </Grid>
-        <TextBlock x:Uid="ImageRuntimeStatusLabel" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-        <TextBlock FontSize="16" FontWeight="SemiBold" Text="{x:Bind ViewModel.ImageRuntimeStatusText, Mode=OneWay}" />
-        <TextBlock
-            Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-            Text="{x:Bind ViewModel.ImageRuntimeDetail, Mode=OneWay}"
-            TextWrapping="Wrap" />
-        <TextBlock x:Uid="ImageModelPathLabel" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-        <TextBlock
-            FontFamily="Consolas"
-            FontSize="11"
-            IsTextSelectionEnabled="True"
-            Text="{x:Bind ViewModel.ImageModelPath, Mode=OneWay}"
-            TextWrapping="Wrap" />
-        <Border
-            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-            BorderThickness="0,1,0,0" />
-        <TextBlock x:Uid="VideoModelHeading" Style="{ThemeResource SubtitleTextBlockStyle}" />
-        <TextBlock FontWeight="SemiBold" Text="{x:Bind ViewModel.VideoModelName, Mode=OneWay}" TextWrapping="Wrap" />
-        <TextBlock Text="{x:Bind ViewModel.VideoModelDescription, Mode=OneWay}" TextWrapping="Wrap" />
-        <Grid ColumnSpacing="8">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="Auto" />
-          </Grid.ColumnDefinitions>
-          <Button
-              x:Uid="LoadVideoModelButton"
-              AutomationProperties.AutomationId="LoadVideoModelButton"
-              AccessKey="V"
-              Command="{x:Bind ViewModel.LoadVideoModelCommand}"
-              HorizontalAlignment="Stretch"
-              HorizontalContentAlignment="Center"
-              Style="{StaticResource AccentButtonStyle}" />
-          <Button
-              x:Uid="EjectVideoModelButton"
-              Grid.Column="1"
-              AutomationProperties.AutomationId="EjectVideoModelButton"
-              Command="{x:Bind ViewModel.EjectVideoModelCommand}" />
-        </Grid>
-        <TextBlock x:Uid="VideoRuntimeStatusLabel" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-        <TextBlock FontSize="16" FontWeight="SemiBold" Text="{x:Bind ViewModel.VideoRuntimeStatusText, Mode=OneWay}" />
-        <TextBlock
-            Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-            Text="{x:Bind ViewModel.VideoRuntimeDetail, Mode=OneWay}"
-            TextWrapping="Wrap" />
-        <TextBlock x:Uid="VideoModelPathLabel" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-        <TextBlock
-            FontFamily="Consolas"
-            FontSize="11"
-            IsTextSelectionEnabled="True"
-            Text="{x:Bind ViewModel.VideoModelPath, Mode=OneWay}"
-            TextWrapping="Wrap" />
-        <Border
-            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-            BorderThickness="0,1,0,0" />
-        <TextBlock x:Uid="SpeechToTextModelHeading" Style="{ThemeResource SubtitleTextBlockStyle}" />
-        <TextBlock FontWeight="SemiBold" Text="{x:Bind ViewModel.SpeechToTextModelName, Mode=OneWay}" TextWrapping="Wrap" />
-        <TextBlock Text="{x:Bind ViewModel.SpeechToTextModelDescription, Mode=OneWay}" TextWrapping="Wrap" />
-        <Grid ColumnSpacing="8">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="Auto" />
-          </Grid.ColumnDefinitions>
-          <Button
-              x:Uid="LoadSpeechToTextModelButton"
-              AutomationProperties.AutomationId="LoadSpeechToTextModelButton"
-              AccessKey="A"
-              Command="{x:Bind ViewModel.LoadSpeechToTextModelCommand}"
-              HorizontalAlignment="Stretch"
-              HorizontalContentAlignment="Center"
-              Style="{StaticResource AccentButtonStyle}" />
-          <Button
-              x:Uid="EjectSpeechToTextModelButton"
-              Grid.Column="1"
-              AutomationProperties.AutomationId="EjectSpeechToTextModelButton"
-              Command="{x:Bind ViewModel.EjectSpeechToTextModelCommand}" />
-        </Grid>
-        <TextBlock x:Uid="SpeechToTextRuntimeStatusLabel" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-        <TextBlock FontSize="16" FontWeight="SemiBold" Text="{x:Bind ViewModel.SpeechToTextRuntimeStatusText, Mode=OneWay}" />
-        <TextBlock
-            Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-            Text="{x:Bind ViewModel.SpeechToTextRuntimeDetail, Mode=OneWay}"
-            TextWrapping="Wrap" />
-        <TextBlock x:Uid="SpeechToTextModelPathLabel" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-        <TextBlock
-            FontFamily="Consolas"
-            FontSize="11"
-            IsTextSelectionEnabled="True"
-            Text="{x:Bind ViewModel.SpeechToTextModelPath, Mode=OneWay}"
-            TextWrapping="Wrap" />
-        <Border
-            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-            BorderThickness="0,1,0,0" />
-        <TextBlock x:Uid="TextToSpeechModelHeading" Style="{ThemeResource SubtitleTextBlockStyle}" />
-        <TextBlock FontWeight="SemiBold" Text="{x:Bind ViewModel.TextToSpeechModelName, Mode=OneWay}" TextWrapping="Wrap" />
-        <TextBlock Text="{x:Bind ViewModel.TextToSpeechModelDescription, Mode=OneWay}" TextWrapping="Wrap" />
-        <Grid ColumnSpacing="8">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="Auto" />
-          </Grid.ColumnDefinitions>
-          <Button
-              x:Uid="LoadTextToSpeechModelButton"
-              AutomationProperties.AutomationId="LoadTextToSpeechModelButton"
-              AccessKey="T"
-              Command="{x:Bind ViewModel.LoadTextToSpeechModelCommand}"
-              HorizontalAlignment="Stretch"
-              HorizontalContentAlignment="Center"
-              Style="{StaticResource AccentButtonStyle}" />
-          <Button
-              x:Uid="EjectTextToSpeechModelButton"
-              Grid.Column="1"
-              AutomationProperties.AutomationId="EjectTextToSpeechModelButton"
-              Command="{x:Bind ViewModel.EjectTextToSpeechModelCommand}" />
-        </Grid>
-        <TextBlock x:Uid="TextToSpeechRuntimeStatusLabel" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-        <TextBlock FontSize="16" FontWeight="SemiBold" Text="{x:Bind ViewModel.TextToSpeechRuntimeStatusText, Mode=OneWay}" />
-        <TextBlock
-            Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-            Text="{x:Bind ViewModel.TextToSpeechRuntimeDetail, Mode=OneWay}"
-            TextWrapping="Wrap" />
-        <TextBlock x:Uid="TextToSpeechModelPathLabel" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-        <TextBlock
-            FontFamily="Consolas"
-            FontSize="11"
-            IsTextSelectionEnabled="True"
-            Text="{x:Bind ViewModel.TextToSpeechModelPath, Mode=OneWay}"
-            TextWrapping="Wrap" />
-        <Border
-            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-            BorderThickness="0,1,0,0" />
-        <TextBlock x:Uid="ApiHeading" FontWeight="SemiBold" />
-        <TextBlock
-            Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
-            IsTextSelectionEnabled="True"
-            Text="{x:Bind ViewModel.ApiBaseUrl, Mode=OneTime}" />
-        <TextBlock Text="{x:Bind ViewModel.ApiStatusText, Mode=OneWay}" />
-        <TextBlock
-            x:Uid="ApiHint"
-            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-            TextWrapping="Wrap" />
-        <ToggleSwitch
-            Header="Allow requests from devices on this network"
-            IsOn="{x:Bind ViewModel.IsNetworkAccessEnabled, Mode=TwoWay}"
-            OffContent="Off"
-            OnContent="On" />
-        <Button
-            Command="{x:Bind ViewModel.SetNetworkAccessCommand}"
-            Content="Apply network setting"
-            HorizontalAlignment="Stretch" />
-        <TextBlock
-            FontWeight="SemiBold"
-            Text="{x:Bind ViewModel.NetworkApiBaseUrl, Mode=OneWay}" />
-        <TextBlock
-            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-            Text="{x:Bind ViewModel.NetworkApiStatusText, Mode=OneWay}"
-            TextWrapping="Wrap" />
-      </StackPanel>
-      </ScrollViewer>
-    </Border>
-
-    <Border
-        Grid.Row="1"
-        Grid.Column="1"
-        Padding="18"
-        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-        BorderThickness="1"
-        CornerRadius="10">
-      <TabView IsAddTabButtonVisible="False" TabWidthMode="Equal">
-      <TabViewItem x:Uid="ChatTab" AutomationProperties.AutomationId="ChatTab" IsClosable="False">
-      <Grid RowSpacing="12">
-        <Grid.RowDefinitions>
-          <RowDefinition Height="Auto" />
-          <RowDefinition Height="*" />
-          <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
-        <Grid ColumnSpacing="8">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="Auto" />
-          </Grid.ColumnDefinitions>
-          <TextBlock x:Uid="ChatHeading" Style="{ThemeResource SubtitleTextBlockStyle}" />
-          <Button
-              x:Uid="NewChatButton"
-              Grid.Column="1"
-              AutomationProperties.AutomationId="NewChatButton"
-              Command="{x:Bind ViewModel.NewChatCommand}" />
-        </Grid>
-        <ListView
-            x:Name="ChatList"
-            x:Uid="ChatList"
-            Grid.Row="1"
-            AutomationProperties.AutomationId="ChatMessageList"
-            IsItemClickEnabled="False"
-            ItemsSource="{x:Bind ViewModel.Messages, Mode=OneWay}"
-            SelectionMode="None">
-          <ListView.ItemTemplate>
-            <DataTemplate x:DataType="models:ChatMessage">
-              <Border
-                  Margin="0,4"
-                  Padding="12"
-                  Background="{ThemeResource LayerFillColorDefaultBrush}"
-                  CornerRadius="8">
-                <StackPanel Spacing="5">
-                  <TextBlock FontWeight="SemiBold" Text="{x:Bind Author, Mode=OneWay}" />
-                  <TextBlock
-                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
-                      Text="{x:Bind AttachmentSummary, Mode=OneTime}" />
-                  <Expander
-                      x:Uid="ThinkingTraceExpander"
-                      HorizontalAlignment="Stretch"
-                      HorizontalContentAlignment="Left"
-                      Visibility="{x:Bind HasReasoning, Mode=OneWay}">
-                    <TextBlock
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        IsTextSelectionEnabled="True"
-                        Text="{x:Bind Reasoning, Mode=OneWay}"
-                        TextWrapping="Wrap" />
-                  </Expander>
-                  <controls:MarkdownRichTextBlock
-                      Markdown="{x:Bind Content, Mode=OneWay}"
-                      RenderMarkdown="{x:Bind IsAssistant, Mode=OneTime}" />
-                </StackPanel>
-              </Border>
-            </DataTemplate>
-          </ListView.ItemTemplate>
-        </ListView>
-        <StackPanel Grid.Row="2" Spacing="8">
-          <Border
-              x:Name="ChatImageAttachmentPanel"
-              Padding="8"
-              Background="{ThemeResource LayerFillColorDefaultBrush}"
-              CornerRadius="8"
-              Visibility="Collapsed">
-            <Grid ColumnSpacing="10">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="96" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
-              <Image
-                  x:Name="ChatImagePreview"
-                  Height="72"
-                  Stretch="Uniform" />
-              <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                <TextBlock FontWeight="SemiBold" Text="{x:Bind ViewModel.SelectedChatAttachmentType, Mode=OneWay}" />
-                <TextBlock
-                    Text="{x:Bind ViewModel.SelectedChatAttachmentName, Mode=OneWay}"
-                    TextTrimming="CharacterEllipsis" />
-              </StackPanel>
-              <Button
-                  x:Uid="RemoveChatImageButton"
-                  Grid.Column="2"
-                  Click="OnRemoveChatMediaClicked" />
-            </Grid>
-          </Border>
-          <Border
-              Padding="12,8"
-              Background="{ThemeResource LayerFillColorDefaultBrush}"
-              CornerRadius="8">
-            <StackPanel Spacing="6">
-              <Grid ColumnSpacing="8">
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*" />
-                  <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <TextBlock x:Uid="ContextUsageHeading" FontWeight="SemiBold" />
-                <TextBlock
-                    Grid.Column="1"
-                    AutomationProperties.AutomationId="ContextUsageText"
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                    Text="{x:Bind ViewModel.ContextUsageText, Mode=OneWay}" />
-              </Grid>
-              <ProgressBar
-                  AutomationProperties.AutomationId="ContextUsageBar"
-                  Maximum="100"
-                  Minimum="0"
-                  Value="{x:Bind ViewModel.ContextUsagePercent, Mode=OneWay}" />
-            </StackPanel>
-          </Border>
-          <ToggleSwitch
-              Header="Reasoning mode"
-              AutomationProperties.AutomationId="ReasoningToggle"
-              IsEnabled="{x:Bind ViewModel.CanConfigureReasoning, Mode=OneWay}"
-              IsOn="{x:Bind ViewModel.IsReasoningEnabled, Mode=TwoWay}"
-              OffContent="Direct answer"
-              OnContent="Think before answering" />
-          <Slider
-              x:Uid="ThinkingBudgetSlider"
-              AutomationProperties.AutomationId="ThinkingBudgetSlider"
-              IsEnabled="{x:Bind ViewModel.CanConfigureReasoning, Mode=OneWay}"
-              Maximum="4096"
-              Minimum="0"
-              StepFrequency="64"
-              TickFrequency="512"
-              TickPlacement="Outside"
-              Value="{x:Bind ViewModel.ThinkingBudgetTokens, Mode=TwoWay}"
-              Visibility="{x:Bind ViewModel.IsReasoningEnabled, Mode=OneWay}" />
-          <Grid ColumnSpacing="8">
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <TextBox
-                x:Name="PromptBox"
-                x:Uid="PromptBox"
-                AutomationProperties.AutomationId="ChatPromptBox"
-                AcceptsReturn="True"
-                MaxHeight="160"
-                MinHeight="72"
-                Text="{x:Bind ViewModel.UserPrompt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                TextWrapping="Wrap" />
-            <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Bottom">
-              <Button
-                  x:Uid="AttachChatImageButton"
-                  AutomationProperties.AutomationId="AttachChatImageButton"
-                  Click="OnSelectChatMediaClicked"
-                  IsEnabled="{x:Bind ViewModel.CanAttachChatMedia, Mode=OneWay}" />
-              <Button
-                  x:Name="SendButton"
-                  x:Uid="SendButton"
-                  AutomationProperties.AutomationId="SendMessageButton"
-                  AccessKey="S"
-                  Command="{x:Bind ViewModel.SendMessageCommand}"
-                  Style="{StaticResource AccentButtonStyle}">
-                <Button.KeyboardAccelerators>
-                  <KeyboardAccelerator Key="Enter" Modifiers="Control" />
-                </Button.KeyboardAccelerators>
-              </Button>
-              <Button
-                  x:Name="StopButton"
-                  x:Uid="StopButton"
-                  AutomationProperties.AutomationId="StopGenerationButton"
-                  Command="{x:Bind ViewModel.CancelGenerationCommand}" />
-            </StackPanel>
-          </Grid>
-        </StackPanel>
-      </Grid>
-      </TabViewItem>
-      <TabViewItem x:Uid="ImagesTab" AutomationProperties.AutomationId="ImagesTab" IsClosable="False">
-        <Grid Padding="4,8,4,4" RowSpacing="12">
-          <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-          </Grid.RowDefinitions>
-          <TextBlock x:Uid="ImageGenerationHeading" Style="{ThemeResource SubtitleTextBlockStyle}" />
-          <Border
-              Grid.Row="1"
-              Background="{ThemeResource LayerFillColorDefaultBrush}"
-              CornerRadius="8">
-            <Grid>
-              <TextBlock
-                  x:Name="ImagePlaceholder"
-                  x:Uid="ImagePlaceholder"
-                  HorizontalAlignment="Center"
-                  VerticalAlignment="Center"
-                  Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-              <Image
-                  x:Name="GeneratedImage"
-                  x:Uid="GeneratedImage"
-                  AutomationProperties.AutomationId="GeneratedImagePreview"
-                  MaxHeight="590"
-                  Stretch="Uniform" />
-            </Grid>
-          </Border>
-          <StackPanel Grid.Row="2" Spacing="8">
-            <TextBox
-                x:Uid="ImagePromptBox"
-                AutomationProperties.AutomationId="ImagePromptBox"
-                AcceptsReturn="True"
-                MaxHeight="130"
-                MinHeight="72"
-                Text="{x:Bind ViewModel.ImagePrompt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                TextWrapping="Wrap" />
-            <Grid ColumnSpacing="8">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
-              <ComboBox
-                  x:Uid="ImageSizePicker"
-                  AutomationProperties.AutomationId="ImageSizePicker"
-                  ItemsSource="{x:Bind ViewModel.ImageSizes, Mode=OneTime}"
-                  SelectedItem="{x:Bind ViewModel.SelectedImageSize, Mode=TwoWay}" />
-              <Button
-                  x:Uid="GenerateImageButton"
-                  Grid.Column="1"
-                  AutomationProperties.AutomationId="GenerateImageButton"
-                  AccessKey="G"
-                  Command="{x:Bind ViewModel.GenerateImageCommand}"
-                  Style="{StaticResource AccentButtonStyle}">
-                <Button.KeyboardAccelerators>
-                  <KeyboardAccelerator Key="Enter" Modifiers="Control" />
-                </Button.KeyboardAccelerators>
-              </Button>
-              <Button
-                  x:Uid="CancelImageButton"
-                  Grid.Column="2"
-                  AutomationProperties.AutomationId="CancelImageButton"
-                  Command="{x:Bind ViewModel.CancelImageGenerationCommand}" />
-            </Grid>
-            <TextBlock
-                Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
-                Text="{x:Bind ViewModel.GeneratedImageSummary, Mode=OneWay}"
-                TextWrapping="Wrap" />
-            <TextBlock
-                FontFamily="Consolas"
-                FontSize="11"
-                IsTextSelectionEnabled="True"
-                Text="{x:Bind ViewModel.GeneratedImagePath, Mode=OneWay}"
-                TextWrapping="Wrap" />
-          </StackPanel>
-        </Grid>
-      </TabViewItem>
-      <TabViewItem x:Uid="VideosTab" AutomationProperties.AutomationId="VideosTab" IsClosable="False">
-        <Grid Padding="4,8,4,4" RowSpacing="12">
-          <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-          </Grid.RowDefinitions>
-          <TextBlock x:Uid="VideoGenerationHeading" Style="{ThemeResource SubtitleTextBlockStyle}" />
-          <Border
-              Grid.Row="1"
-              Background="{ThemeResource LayerFillColorDefaultBrush}"
-              CornerRadius="8">
-            <Grid>
-              <TextBlock
-                  x:Name="VideoPlaceholder"
-                  x:Uid="VideoPlaceholder"
-                  HorizontalAlignment="Center"
-                  VerticalAlignment="Center"
-                  Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-              <MediaPlayerElement
-                  x:Name="GeneratedVideo"
-                  x:Uid="GeneratedVideo"
-                  AutomationProperties.AutomationId="GeneratedVideoPreview"
-                  AreTransportControlsEnabled="True"
-                  AutoPlay="False"
-                  MaxHeight="560"
-                  Stretch="Uniform"
-                  Visibility="Collapsed" />
-            </Grid>
-          </Border>
-          <StackPanel Grid.Row="2" Spacing="8">
-            <TextBox
-                x:Uid="VideoPromptBox"
-                AutomationProperties.AutomationId="VideoPromptBox"
-                AcceptsReturn="True"
-                MaxHeight="130"
-                MinHeight="72"
-                Text="{x:Bind ViewModel.VideoPrompt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                TextWrapping="Wrap" />
-            <Grid ColumnSpacing="8">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
-              <ComboBox
-                  x:Uid="VideoPresetPicker"
-                  AutomationProperties.AutomationId="VideoPresetPicker"
-                  DisplayMemberPath="DisplayName"
-                  ItemsSource="{x:Bind ViewModel.VideoPresets, Mode=OneTime}"
-                  SelectedItem="{x:Bind ViewModel.SelectedVideoPreset, Mode=TwoWay}" />
-              <Button
-                  x:Uid="GenerateVideoButton"
-                  Grid.Column="1"
-                  AutomationProperties.AutomationId="GenerateVideoButton"
-                  AccessKey="R"
-                  Command="{x:Bind ViewModel.GenerateVideoCommand}"
-                  Style="{StaticResource AccentButtonStyle}">
-                <Button.KeyboardAccelerators>
-                  <KeyboardAccelerator Key="Enter" Modifiers="Control" />
-                </Button.KeyboardAccelerators>
-              </Button>
-              <Button
-                  x:Uid="CancelVideoButton"
-                  Grid.Column="2"
-                  AutomationProperties.AutomationId="CancelVideoButton"
-                  Command="{x:Bind ViewModel.CancelVideoGenerationCommand}" />
-            </Grid>
-            <TextBlock
-                Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
-                Text="{x:Bind ViewModel.GeneratedVideoSummary, Mode=OneWay}"
-                TextWrapping="Wrap" />
-            <TextBlock
-                FontFamily="Consolas"
-                FontSize="11"
-                IsTextSelectionEnabled="True"
-                Text="{x:Bind ViewModel.GeneratedVideoPath, Mode=OneWay}"
-                TextWrapping="Wrap" />
-          </StackPanel>
-        </Grid>
-      </TabViewItem>
-      <TabViewItem x:Uid="AudioTab" AutomationProperties.AutomationId="AudioTab" IsClosable="False">
-        <ScrollViewer HorizontalScrollMode="Disabled" VerticalScrollBarVisibility="Auto">
-          <Grid Padding="4,8,4,4" ColumnSpacing="18">
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-            <StackPanel Spacing="10">
-              <TextBlock x:Uid="TranscriptionHeading" Style="{ThemeResource SubtitleTextBlockStyle}" />
-              <TextBlock x:Uid="TranscriptionHint" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
-              <Button
-                  x:Name="SelectAudioFileButton"
-                  x:Uid="SelectAudioFileButton"
-                  AutomationProperties.AutomationId="SelectAudioFileButton"
-                  Click="OnSelectAudioFileClicked" />
-              <TextBlock
-                  FontFamily="Consolas"
-                  FontSize="11"
-                  IsTextSelectionEnabled="True"
-                  Text="{x:Bind ViewModel.SelectedAudioFilePath, Mode=OneWay}"
-                  TextWrapping="Wrap" />
-              <Grid ColumnSpacing="8">
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*" />
-                  <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <Button
-                    x:Uid="TranscribeButton"
-                    AutomationProperties.AutomationId="TranscribeButton"
-                    Command="{x:Bind ViewModel.TranscribeAudioCommand}"
-                    HorizontalAlignment="Stretch"
-                    HorizontalContentAlignment="Center"
-                    Style="{StaticResource AccentButtonStyle}" />
-                <Button
-                    x:Uid="CancelTranscriptionButton"
-                    Grid.Column="1"
-                    Command="{x:Bind ViewModel.CancelAudioOperationCommand}" />
-              </Grid>
-              <TextBlock
-                  Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
-                  Text="{x:Bind ViewModel.TranscriptionSummary, Mode=OneWay}"
-                  TextWrapping="Wrap" />
-              <TextBox
-                  x:Uid="TranscriptionOutput"
-                  AcceptsReturn="True"
-                  MinHeight="300"
-                  Text="{x:Bind ViewModel.TranscriptionText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                  TextWrapping="Wrap" />
-            </StackPanel>
-            <StackPanel Grid.Column="1" Spacing="10">
-              <TextBlock x:Uid="SpeechHeading" Style="{ThemeResource SubtitleTextBlockStyle}" />
-              <TextBlock x:Uid="SpeechHint" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
-              <TextBox
-                  x:Uid="SpeechTextBox"
-                  AcceptsReturn="True"
-                  MinHeight="170"
-                  Text="{x:Bind ViewModel.SpeechText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                  TextWrapping="Wrap" />
-              <ComboBox
-                  x:Uid="VoicePicker"
-                  AutomationProperties.AutomationId="VoicePicker"
-                  DisplayMemberPath="DisplayName"
-                  ItemsSource="{x:Bind ViewModel.Voices, Mode=OneWay}"
-                  SelectedItem="{x:Bind ViewModel.SelectedVoice, Mode=TwoWay}" />
-              <Slider
-                  x:Uid="SpeechSpeedSlider"
-                  Header="Speed"
-                  Maximum="2"
-                  Minimum="0.5"
-                  SmallChange="0.05"
-                  StepFrequency="0.05"
-                  Value="{x:Bind ViewModel.SpeechSpeed, Mode=TwoWay}" />
-              <Grid ColumnSpacing="8">
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*" />
-                  <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <Button
-                    x:Uid="GenerateSpeechButton"
-                    AutomationProperties.AutomationId="GenerateSpeechButton"
-                    Command="{x:Bind ViewModel.SynthesizeSpeechCommand}"
-                    HorizontalAlignment="Stretch"
-                    HorizontalContentAlignment="Center"
-                    Style="{StaticResource AccentButtonStyle}" />
-                <Button
-                    x:Uid="CancelSpeechButton"
-                    Grid.Column="1"
-                    Command="{x:Bind ViewModel.CancelAudioOperationCommand}" />
-              </Grid>
-              <MediaPlayerElement
-                  x:Name="GeneratedSpeech"
-                  AutomationProperties.AutomationId="GeneratedSpeechPlayer"
-                  AreTransportControlsEnabled="True"
-                  AutoPlay="True"
-                  Height="80"
-                  Visibility="Collapsed" />
-              <TextBlock
-                  Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
-                  Text="{x:Bind ViewModel.GeneratedSpeechSummary, Mode=OneWay}"
-                  TextWrapping="Wrap" />
-              <TextBlock
-                  FontFamily="Consolas"
-                  FontSize="11"
-                  IsTextSelectionEnabled="True"
-                  Text="{x:Bind ViewModel.GeneratedSpeechPath, Mode=OneWay}"
-                  TextWrapping="Wrap" />
-            </StackPanel>
-          </Grid>
-        </ScrollViewer>
-      </TabViewItem>
-      </TabView>
-    </Border>
-
-    <Border
-        Grid.Row="1"
-        Grid.Column="2"
-        Padding="18"
-        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-        BorderThickness="1"
-        CornerRadius="10">
-      <Grid RowSpacing="8">
-        <Grid.RowDefinitions>
-          <RowDefinition Height="Auto" />
-          <RowDefinition Height="Auto" />
-          <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
-        <TextBlock x:Uid="ActivityHeading" Style="{ThemeResource SubtitleTextBlockStyle}" />
-        <TextBlock
-            x:Uid="ActivitySubheading"
-            Grid.Row="1"
-            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-            TextWrapping="Wrap" />
-        <Grid Grid.Row="2">
-          <TextBlock
-              x:Uid="NoActivity"
-              HorizontalAlignment="Center"
+    <NavigationView.PaneFooter>
+      <StackPanel
+          Margin="16,8,16,12"
+          AutomationProperties.AutomationId="RuntimeSummary"
+          Spacing="4"
+          Visibility="{x:Bind NavView.IsPaneOpen, Mode=OneWay}">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Ellipse
+              Width="8"
+              Height="8"
               VerticalAlignment="Center"
-              Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-              Visibility="{x:Bind ViewModel.HasNoMetrics, Mode=OneWay}" />
-          <ListView
-              x:Name="ActivityList"
-              x:Uid="ActivityList"
-              AutomationProperties.AutomationId="RequestActivityList"
-              ItemsSource="{x:Bind ViewModel.RequestMetrics, Mode=OneWay}"
-              SelectionMode="None">
-            <ListView.ItemTemplate>
-              <DataTemplate x:DataType="models:RequestMetric">
-                <Border
-                    Margin="0,4"
-                    Padding="10"
-                    Background="{ThemeResource LayerFillColorDefaultBrush}"
-                    CornerRadius="8">
-                  <StackPanel Spacing="4">
-                    <Grid ColumnSpacing="8">
-                      <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                      </Grid.ColumnDefinitions>
-                      <TextBlock FontWeight="SemiBold" Text="{x:Bind Source}" />
-                      <TextBlock Grid.Column="1" Text="{x:Bind TimeSummary}" />
-                    </Grid>
-                    <TextBlock FontFamily="Consolas" FontSize="11" Text="{x:Bind Endpoint}" />
-                    <TextBlock Text="{x:Bind Model}" TextTrimming="CharacterEllipsis" />
-                    <TextBlock Text="{x:Bind QuantitySummary}" TextWrapping="Wrap" />
-                    <TextBlock
-                        Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
-                        Text="{x:Bind PerformanceSummary}"
-                        TextWrapping="Wrap" />
-                  </StackPanel>
-                </Border>
-              </DataTemplate>
-            </ListView.ItemTemplate>
-          </ListView>
-        </Grid>
-      </Grid>
-    </Border>
-  </Grid>
+              Fill="{ThemeResource SystemFillColorSuccessBrush}"
+              Visibility="{x:Bind ViewModel.IsApiListening, Mode=OneWay}" />
+          <TextBlock
+              VerticalAlignment="Center"
+              Style="{StaticResource CaptionTextBlockStyle}"
+              Text="{x:Bind ViewModel.ApiStatusText, Mode=OneWay}" />
+        </StackPanel>
+        <TextBlock
+            Style="{StaticResource SecondaryCaptionTextStyle}"
+            Text="{x:Bind ViewModel.LoadedModelsText, Mode=OneWay}"
+            TextTrimming="CharacterEllipsis"
+            TextWrapping="NoWrap"
+            ToolTipService.ToolTip="{x:Bind ViewModel.LoadedModelsText, Mode=OneWay}" />
+      </StackPanel>
+    </NavigationView.PaneFooter>
+
+    <Grid>
+      <views:ChatView x:Name="ChatSection" />
+      <views:ImagesView x:Name="ImagesSection" Visibility="Collapsed" />
+      <views:VideoView x:Name="VideoSection" Visibility="Collapsed" />
+      <views:AudioView x:Name="AudioSection" Visibility="Collapsed" />
+      <views:ModelsView x:Name="ModelsSection" Visibility="Collapsed" />
+      <views:ApiView x:Name="ApiSection" Visibility="Collapsed" />
+      <views:SettingsView x:Name="SettingsSection" Visibility="Collapsed" />
+    </Grid>
+  </NavigationView>
 </Page>

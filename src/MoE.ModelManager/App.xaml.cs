@@ -70,7 +70,11 @@ public partial class App : Application
         services.AddSingleton<IOpenAiChatService, OpenAiChatService>();
         services.AddSingleton<IImageGenerationService, ImageGenerationService>();
         services.AddSingleton<IVideoGenerationService, VideoGenerationService>();
-        services.AddTransient(provider => new MainViewModel(
+        services.AddSingleton<IChatHistoryService, ChatHistoryService>(_ => new ChatHistoryService());
+        services.AddSingleton<IAppSettingsService, AppSettingsService>(_ => new AppSettingsService());
+
+        // Every workspace binds to one shared view model so state survives navigation.
+        services.AddSingleton(provider => new MainViewModel(
             provider.GetRequiredService<IApiProxyService>(),
             provider.GetRequiredService<IAppResources>(),
             provider.GetRequiredService<IModelCatalogService>(),
@@ -84,7 +88,9 @@ public partial class App : Application
             provider.GetRequiredService<IOpenAiChatService>(),
             provider.GetRequiredService<IImageGenerationService>(),
             provider.GetRequiredService<IVideoGenerationService>(),
-            provider.GetRequiredService<IRequestTelemetryService>()));
+            provider.GetRequiredService<IRequestTelemetryService>(),
+            provider.GetRequiredService<IChatHistoryService>(),
+            provider.GetRequiredService<IAppSettingsService>()));
         return services.BuildServiceProvider();
     }
 

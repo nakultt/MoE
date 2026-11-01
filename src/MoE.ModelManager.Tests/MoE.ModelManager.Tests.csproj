@@ -29,6 +29,16 @@
     <Compile Include="..\MoE.ModelManager\Services\WaveAudioData.cs" Link="Source\WaveAudioData.cs" />
     <Compile Include="..\MoE.ModelManager\Services\WaveAudioReader.cs" Link="Source\WaveAudioReader.cs" />
     <Compile Include="..\MoE.ModelManager\Services\RequestTelemetryService.cs" Link="Source\RequestTelemetryService.cs" />
+    <Compile Include="..\MoE.ModelManager\Models\AppSettings.cs" Link="Source\AppSettings.cs" />
+    <Compile Include="..\MoE.ModelManager\Models\ChatConversation.cs" Link="Source\ChatConversation.cs" />
+    <Compile Include="..\MoE.ModelManager\Models\ChatConversationSummary.cs" Link="Source\ChatConversationSummary.cs" />
+    <Compile Include="..\MoE.ModelManager\Models\StoredChatMessage.cs" Link="Source\StoredChatMessage.cs" />
+    <Compile Include="..\MoE.ModelManager\Services\AppSettingsService.cs" Link="Source\AppSettingsService.cs" />
+    <Compile Include="..\MoE.ModelManager\Services\ChatHistoryService.cs" Link="Source\ChatHistoryService.cs" />
+    <Compile Include="..\MoE.ModelManager\Services\ChatTranscriptFormatter.cs" Link="Source\ChatTranscriptFormatter.cs" />
+    <Compile Include="..\MoE.ModelManager\Services\IAppSettingsService.cs" Link="Source\IAppSettingsService.cs" />
+    <Compile Include="..\MoE.ModelManager\Services\IChatHistoryService.cs" Link="Source\IChatHistoryService.cs" />
+    <Compile Include="..\MoE.ModelManager\Services\ModelBrandCatalog.cs" Link="Source\ModelBrandCatalog.cs" />
   </ItemGroup>
 
 </Project>
