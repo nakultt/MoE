@@ -768,7 +768,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Models.Add(model);
         }
 
-        SelectedModel = Models.FirstOrDefault();
+        // Headless mode or the control API may have loaded a model before this window opened.
+        SelectedModel = Models.FirstOrDefault(model => model.Id == _runtimeService.Current.ModelId)
+            ?? Models.FirstOrDefault();
         ImageModel = await _imageModelCatalogService.LoadAsync(cancellationToken);
         AudioModel = await _audioModelCatalogService.LoadAsync(cancellationToken);
         VideoModel = await _videoModelCatalogService.LoadAsync(cancellationToken);
@@ -796,6 +798,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(VideoModelPath));
         OnPropertyChanged(nameof(VideoModelLogo));
         OnPropertyChanged(nameof(VideoModelPublisher));
+        ApplyRuntimeSnapshot(_runtimeService.Current);
+        ApplyImageRuntimeSnapshot(_imageRuntimeService.Current);
+        ApplySpeechToTextSnapshot(_audioRuntimeService.SpeechToTextCurrent);
+        ApplyTextToSpeechSnapshot(_audioRuntimeService.TextToSpeechCurrent);
+        ApplyVideoRuntimeSnapshot(_videoRuntimeService.Current);
         LoadImageModelCommand.NotifyCanExecuteChanged();
         LoadSpeechToTextModelCommand.NotifyCanExecuteChanged();
         LoadTextToSpeechModelCommand.NotifyCanExecuteChanged();
@@ -1936,6 +1943,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private void ApplyRuntimeSnapshot(RuntimeSnapshot snapshot)
     {
         _loadedModelId = snapshot.Status == RuntimeStatus.Ready ? snapshot.ModelId ?? string.Empty : string.Empty;
+
+        // Keep the picker on the model that is actually running when the control API swaps it.
+        if (snapshot.Status is RuntimeStatus.Loading or RuntimeStatus.Ready
+            && SelectedModel?.Id != snapshot.ModelId
+            && Models.FirstOrDefault(model => model.Id == snapshot.ModelId) is { } runningModel)
+        {
+            SelectedModel = runningModel;
+        }
+
         RuntimeStatus = snapshot.Status;
         RuntimeStatusText = _resources.GetString($"Status{snapshot.Status}");
         if (!string.IsNullOrWhiteSpace(snapshot.Detail))

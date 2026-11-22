@@ -27,6 +27,7 @@ internal sealed class OpenAiProxyService : IApiProxyService
     private readonly IAudioRuntimeService _audioRuntimeService;
     private readonly IVideoRuntimeService _videoRuntimeService;
     private readonly IRequestTelemetryService _telemetryService;
+    private readonly IModelControlService _controlService;
     private readonly SemaphoreSlim _lifecycleGate = new(1, 1);
     private readonly string _networkSettingsPath;
     private NetworkApiSettings _networkSettings;
@@ -39,8 +40,10 @@ internal sealed class OpenAiProxyService : IApiProxyService
         IImageRuntimeService imageRuntimeService,
         IAudioRuntimeService audioRuntimeService,
         IVideoRuntimeService videoRuntimeService,
-        IRequestTelemetryService telemetryService)
+        IRequestTelemetryService telemetryService,
+        IModelControlService controlService)
     {
+        _controlService = controlService;
         _resources = resources;
         _httpClientFactory = httpClientFactory;
         _runtimeService = runtimeService;
@@ -609,6 +612,7 @@ internal sealed class OpenAiProxyService : IApiProxyService
                 StatusCodes.Status200OK,
                 new
                 {
+                    app = "moe-model-manager",
                     status = _runtimeService.Current.Status == RuntimeStatus.Ready
                         || _imageRuntimeService.Current.Status == RuntimeStatus.Ready
                         || _audioRuntimeService.SpeechToTextCurrent.Status == RuntimeStatus.Ready
@@ -622,6 +626,12 @@ internal sealed class OpenAiProxyService : IApiProxyService
                     text_to_speech = _audioRuntimeService.TextToSpeechCurrent.Status.ToString().ToLowerInvariant(),
                     video_model = _videoRuntimeService.Current.Status.ToString().ToLowerInvariant(),
                 });
+            return;
+        }
+
+        if (path.StartsWith("/moe/", StringComparison.OrdinalIgnoreCase))
+        {
+            await HandleControlAsync(context, path);
             return;
         }
 
@@ -697,6 +707,180 @@ internal sealed class OpenAiProxyService : IApiProxyService
 
         await ForwardAsync(context, path, useImageRuntime, useVideoRuntime);
     }
+
+    private async Task HandleControlAsync(HttpContext context, string path)
+    {
+        // Control routes change what runs on this PC, so they never accept LAN callers or
+        // browser pages (browsers always send Origin on cross-site requests; curl and SDKs do not).
+        IPAddress? remoteAddress = context.Connection.RemoteIpAddress;
+        if (remoteAddress is null
+            || !IPAddress.IsLoopback(remoteAddress)
+            || context.Request.Headers.ContainsKey("Origin"))
+        {
+            context.Response.Headers.Remove("Access-Control-Allow-Origin");
+            await WriteOpenAiErrorAsync(
+                context,
+                StatusCodes.Status403Forbidden,
+                "Model control is only available to local clients on this PC.");
+            return;
+        }
+
+        bool isGet = HttpMethods.IsGet(context.Request.Method);
+        bool isPost = HttpMethods.IsPost(context.Request.Method);
+        if (isGet && path.Equals("/moe/models", StringComparison.OrdinalIgnoreCase))
+        {
+            IReadOnlyList<ControlledModel> models = await _controlService.GetModelsAsync(context.RequestAborted);
+            await WriteJsonAsync(context, StatusCodes.Status200OK, new { models = models.Select(ToControlJson) });
+            return;
+        }
+
+        if (isPost && path.Equals("/moe/load", StringComparison.OrdinalIgnoreCase))
+        {
+            await HandleLoadAsync(context);
+            return;
+        }
+
+        if (isPost && path.Equals("/moe/eject", StringComparison.OrdinalIgnoreCase))
+        {
+            await HandleEjectAsync(context);
+            return;
+        }
+
+        if (isPost && path.Equals("/moe/shutdown", StringComparison.OrdinalIgnoreCase))
+        {
+            // Exit only after the response reaches the caller.
+            context.Response.OnCompleted(() =>
+            {
+                _controlService.RequestShutdown();
+                return Task.CompletedTask;
+            });
+            await WriteJsonAsync(context, StatusCodes.Status202Accepted, new { status = "shutting_down" });
+            return;
+        }
+
+        await WriteOpenAiErrorAsync(
+            context,
+            StatusCodes.Status404NotFound,
+            "Unknown control route. Use GET /moe/models or POST /moe/load, /moe/eject, /moe/shutdown.");
+    }
+
+    private async Task HandleLoadAsync(HttpContext context)
+    {
+        ControlRequest? request = await ReadControlRequestAsync(context);
+        if (string.IsNullOrWhiteSpace(request?.Model))
+        {
+            await WriteOpenAiErrorAsync(context, StatusCodes.Status400BadRequest, "Send JSON like {\"model\":\"gemma-4-26b-a4b\"}.");
+            return;
+        }
+
+        ControlledModel? model = await _controlService.FindModelAsync(request.Model, context.RequestAborted);
+        if (model is null)
+        {
+            await WriteOpenAiErrorAsync(
+                context,
+                StatusCodes.Status404NotFound,
+                $"Unknown model '{request.Model}'. GET /moe/models lists the available ids.");
+            return;
+        }
+
+        // The load is started without the request token so a client disconnect never leaves a half-loaded runtime.
+        Task<ControlledModel> load = _controlService.LoadAsync(model.Id);
+        if (!request.Wait)
+        {
+            _ = load.ContinueWith(
+                task => _ = task.Exception,
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted,
+                TaskScheduler.Default);
+            ControlledModel pending = await _controlService.FindModelAsync(model.Id, context.RequestAborted) ?? model;
+            await WriteJsonAsync(context, StatusCodes.Status202Accepted, new { model = ToControlJson(pending) });
+            return;
+        }
+
+        try
+        {
+            ControlledModel loaded = await load.WaitAsync(context.RequestAborted);
+            await WriteJsonAsync(context, StatusCodes.Status200OK, new { model = ToControlJson(loaded) });
+        }
+        catch (Exception exception) when (exception is IOException
+            or InvalidOperationException
+            or InvalidDataException
+            or TimeoutException
+            or UnauthorizedAccessException)
+        {
+            await WriteOpenAiErrorAsync(
+                context,
+                StatusCodes.Status500InternalServerError,
+                $"Loading {model.Id} failed: {exception.Message}");
+        }
+    }
+
+    private async Task HandleEjectAsync(HttpContext context)
+    {
+        ControlRequest? request = await ReadControlRequestAsync(context);
+        if (request?.Kind?.Equals("all", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            await _controlService.EjectAllAsync(CancellationToken.None);
+        }
+        else if (!string.IsNullOrWhiteSpace(request?.Model))
+        {
+            ControlledModel? model = await _controlService.FindModelAsync(request.Model, context.RequestAborted);
+            if (model is null)
+            {
+                await WriteOpenAiErrorAsync(context, StatusCodes.Status404NotFound, $"Unknown model '{request.Model}'.");
+                return;
+            }
+
+            await _controlService.EjectAsync(model.Kind, CancellationToken.None);
+        }
+        else if (ModelControlRules.TryParseKind(request?.Kind, out ModelKind kind))
+        {
+            await _controlService.EjectAsync(kind, CancellationToken.None);
+        }
+        else
+        {
+            await WriteOpenAiErrorAsync(
+                context,
+                StatusCodes.Status400BadRequest,
+                "Send {\"model\":\"<id>\"} or {\"kind\":\"text|image|video|speech-to-text|text-to-speech|all\"}.");
+            return;
+        }
+
+        IReadOnlyList<ControlledModel> models = await _controlService.GetModelsAsync(context.RequestAborted);
+        await WriteJsonAsync(context, StatusCodes.Status200OK, new { models = models.Select(ToControlJson) });
+    }
+
+#pragma warning disable SA1204 // Control request helpers stay near their consumers.
+    private static async Task<ControlRequest?> ReadControlRequestAsync(HttpContext context)
+    {
+        byte[] body = await ReadRequestBodyAsync(context.Request, context.RequestAborted);
+        if (body.Length == 0)
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<ControlRequest>(body);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static object ToControlJson(ControlledModel model)
+    {
+        return new
+        {
+            id = model.Id,
+            name = model.Name,
+            kind = ModelControlRules.ToApiName(model.Kind),
+            status = model.Status.ToString().ToLowerInvariant(),
+            detail = model.Detail,
+        };
+    }
+#pragma warning restore SA1204
 
     private async Task HandleSpeechAsync(HttpContext context)
     {
@@ -1030,5 +1214,17 @@ internal sealed class OpenAiProxyService : IApiProxyService
     private sealed class NetworkApiSettings
     {
         public bool Enabled { get; init; }
+    }
+
+    private sealed class ControlRequest
+    {
+        [JsonPropertyName("model")]
+        public string? Model { get; init; }
+
+        [JsonPropertyName("kind")]
+        public string? Kind { get; init; }
+
+        [JsonPropertyName("wait")]
+        public bool Wait { get; init; } = true;
     }
 }

@@ -39,6 +39,25 @@
     <Compile Include="..\MoE.ModelManager\Services\IAppSettingsService.cs" Link="Source\IAppSettingsService.cs" />
     <Compile Include="..\MoE.ModelManager\Services\IChatHistoryService.cs" Link="Source\IChatHistoryService.cs" />
     <Compile Include="..\MoE.ModelManager\Services\ModelBrandCatalog.cs" Link="Source\ModelBrandCatalog.cs" />
+    <Compile Include="..\MoE.ModelManager\Models\ModelKind.cs" Link="Source\ModelKind.cs" />
+    <Compile Include="..\MoE.ModelManager\Models\ControlledModel.cs" Link="Source\ControlledModel.cs" />
+    <Compile Include="..\MoE.ModelManager\Models\RuntimeSnapshot.cs" Link="Source\RuntimeSnapshot.cs" />
+    <Compile Include="..\MoE.ModelManager\Models\RuntimeStatus.cs" Link="Source\RuntimeStatus.cs" />
+    <Compile Include="..\MoE.ModelManager\Models\AudioModelDefinition.cs" Link="Source\AudioModelDefinition.cs" />
+    <Compile Include="..\MoE.ModelManager\Models\KokoroVoice.cs" Link="Source\KokoroVoice.cs" />
+    <Compile Include="..\MoE.ModelManager\Models\AudioTranscriptionResult.cs" Link="Source\AudioTranscriptionResult.cs" />
+    <Compile Include="..\MoE.ModelManager\Models\GeneratedSpeechResult.cs" Link="Source\GeneratedSpeechResult.cs" />
+    <Compile Include="..\MoE.ModelManager\Services\IModelRuntimeService.cs" Link="Source\IModelRuntimeService.cs" />
+    <Compile Include="..\MoE.ModelManager\Services\IImageRuntimeService.cs" Link="Source\IImageRuntimeService.cs" />
+    <Compile Include="..\MoE.ModelManager\Services\IAudioRuntimeService.cs" Link="Source\IAudioRuntimeService.cs" />
+    <Compile Include="..\MoE.ModelManager\Services\IVideoRuntimeService.cs" Link="Source\IVideoRuntimeService.cs" />
+    <Compile Include="..\MoE.ModelManager\Services\IModelCatalogService.cs" Link="Source\IModelCatalogService.cs" />
+    <Compile Include="..\MoE.ModelManager\Services\IImageModelCatalogService.cs" Link="Source\IImageModelCatalogService.cs" />
+    <Compile Include="..\MoE.ModelManager\Services\IAudioModelCatalogService.cs" Link="Source\IAudioModelCatalogService.cs" />
+    <Compile Include="..\MoE.ModelManager\Services\IVideoModelCatalogService.cs" Link="Source\IVideoModelCatalogService.cs" />
+    <Compile Include="..\MoE.ModelManager\Services\IModelControlService.cs" Link="Source\IModelControlService.cs" />
+    <Compile Include="..\MoE.ModelManager\Services\ModelControlService.cs" Link="Source\ModelControlService.cs" />
+    <Compile Include="..\MoE.ModelManager\Services\ModelControlRules.cs" Link="Source\ModelControlRules.cs" />
   </ItemGroup>
 
 </Project>

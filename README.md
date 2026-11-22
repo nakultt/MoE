@@ -12,6 +12,7 @@ Native WinUI 3 desktop control center for local Nemotron 3 Nano Omni, Qwen3.6, G
 - FastWan2.2 three-step video generation with Turbo, Balanced, and Quality presets, in-app MP4 playback, local saving, and stop/eject support.
 - Native C# speech-to-text with Parakeet TDT 0.6B v3 INT8 and text-to-speech with Kokoro 82M, including editable transcription, voice/speed selection, WAV playback, and local saving.
 - OpenAI-compatible `GET`/`POST`/`DELETE` proxy at `http://127.0.0.1:8081/v1`.
+- Headless mode (`moe-manager --headless`) and a localhost-only control API (`/moe/models`, `/moe/load`, `/moe/eject`, `/moe/shutdown`) so scripts and coding agents can start the app and load models without the window.
 - Request activity showing chat TPS, image duration, or completed video generation duration for desktop and external API calls.
 - Pinned CUDA 12.4 llama.cpp runtime installer (`b10359`) with Nemotron Omni image, audio, and video input support.
 - Pinned CUDA 12 stable-diffusion.cpp image runtime (`e31a86c`).
@@ -113,6 +114,16 @@ Also verify path settings in `settings.ps1` if using fallback llama.cpp Web UI l
 dotnet build .\src\MoE.ModelManager\MoE.ModelManager.csproj -c Debug -p:Platform=x64
 dotnet run --project .\src\MoE.ModelManager\MoE.ModelManager.csproj -c Debug -p:Platform=x64
 ```
+
+#### Run headless (no window)
+
+The MSIX registers the `moe-manager` execution alias. Headless mode starts only the API; load models through the [control API](#model-control-api-localhost-only).
+
+```powershell
+moe-manager --headless
+```
+
+Only one instance runs. Launching the app again (Start menu or `moe-manager`) while it runs headless opens the window in that same instance, already showing any loaded models. Closing the window, or `POST /moe/shutdown`, ejects every model and exits.
 
 #### 7. Run test suite
 
@@ -346,6 +357,10 @@ Every model runtime passes through these states:
 | Method | Endpoint | Description |
 | --- | --- | --- |
 | `GET` | `/health` | Health check for all runtimes |
+| `GET` | `/moe/models` | Every configured model with its live status (localhost only) |
+| `POST` | `/moe/load` | Load a model, ejecting conflicting GPU runtimes (localhost only) |
+| `POST` | `/moe/eject` | Eject one model, one kind, or everything (localhost only) |
+| `POST` | `/moe/shutdown` | Eject everything and exit the app (localhost only) |
 | `GET` | `/v1/models` | List loaded models |
 | `POST` | `/v1/chat/completions` | Text generation (streaming and non-streaming) |
 | `POST` | `/v1/images/generations` | Image generation |
@@ -376,6 +391,7 @@ No request body or query parameters.
 
 ```json
 {
+  "app": "moe-model-manager",
   "status": "ready",
   "text_model": "ready",
   "image_model": "unloaded",
@@ -387,12 +403,56 @@ No request body or query parameters.
 
 | Field | Type | Description |
 | --- | --- | --- |
+| `app` | `string` | Always `"moe-model-manager"`; identifies this server |
 | `status` | `string` | `"ready"` if **any** runtime is ready; `"unloaded"` otherwise |
 | `text_model` | `string` | Lifecycle state of the LLM runtime (`unloaded` \| `loading` \| `ready` \| `ejecting` \| `error`) |
 | `image_model` | `string` | Lifecycle state of the image runtime |
 | `speech_to_text` | `string` | Lifecycle state of the Parakeet STT runtime |
 | `text_to_speech` | `string` | Lifecycle state of the Kokoro TTS runtime |
 | `video_model` | `string` | Lifecycle state of the video runtime |
+
+---
+
+### Model control API (localhost only)
+
+These routes load and eject models without the window. They answer only callers on this PC: a LAN caller (when network access is on) or any request with an `Origin` header (a browser page) gets `403`.
+
+Text, image, and video share the GPU, so loading one ejects the other two first, exactly like the app. Speech-to-text and text-to-speech run on the CPU and never conflict. Loading a model that is already ready does nothing.
+
+#### `GET /moe/models`
+
+```json
+{
+  "models": [
+    { "id": "gemma-4-26b-a4b", "name": "Gemma 4 26B A4B", "kind": "text", "status": "ready", "detail": null },
+    { "id": "flux.2-klein-4b", "name": "FLUX.2 Klein 4B Distilled", "kind": "image", "status": "unloaded", "detail": null },
+    { "id": "parakeet-tdt-0.6b-v3", "name": "NVIDIA Parakeet TDT 0.6B v3", "kind": "speech-to-text", "status": "unloaded", "detail": null }
+  ]
+}
+```
+
+`kind` is `text`, `image`, `video`, `speech-to-text`, or `text-to-speech`. `status` uses the [lifecycle states](#runtime-lifecycle-states); `detail` holds the last load error.
+
+#### `POST /moe/load`
+
+```bash
+curl -X POST http://127.0.0.1:8081/moe/load -H "Content-Type: application/json" -d '{"model":"gemma-4-26b-a4b"}'
+```
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `model` | `string` | Required model id from `GET /moe/models` |
+| `wait` | `bool` | Default `true`: respond `200` with the ready model. `false`: respond `202` at once and poll `GET /moe/models` |
+
+Returns `404` for an unknown id and `500` with the reason when loading fails. The load continues even if the caller disconnects.
+
+#### `POST /moe/eject`
+
+Body is one of `{"model":"<id>"}`, `{"kind":"text|image|video|speech-to-text|text-to-speech"}`, or `{"kind":"all"}`. Returns the updated model list.
+
+#### `POST /moe/shutdown`
+
+Returns `202 {"status":"shutting_down"}`, then ejects every model and exits the app.
 
 ---
 

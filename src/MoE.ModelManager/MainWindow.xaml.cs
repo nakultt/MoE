@@ -86,6 +86,6 @@ public sealed partial class MainWindow : Window
     private async void OnClosed(object sender, WindowEventArgs args)
     {
         _viewModel.ThemeChanged -= ApplyTheme;
-        await App.ShutdownAsync();
+        await ((App)Application.Current).ExitAppAsync();
     }
 }
