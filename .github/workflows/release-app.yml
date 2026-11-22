@@ -43,7 +43,7 @@ jobs:
           $manifestPath = 'src/MoE.ModelManager/Package.appxmanifest'
           $manifest = [xml](Get-Content -LiteralPath $manifestPath -Raw)
           $baseVersion = [Version]$manifest.Package.Identity.Version
-          if ($env:GITHUB_RUN_NUMBER -gt 65535) {
+          if ([int]$env:GITHUB_RUN_NUMBER -gt 65535) {
             throw 'GitHub run number exceeds the MSIX version-field limit.'
           }
           $version = "{0}.{1}.{2}.{3}" -f $baseVersion.Major, $baseVersion.Minor, $baseVersion.Build, $env:GITHUB_RUN_NUMBER
