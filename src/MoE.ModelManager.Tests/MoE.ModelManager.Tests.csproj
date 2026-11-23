@@ -22,6 +22,7 @@
     <Compile Include="..\MoE.ModelManager\Models\RequestMetric.cs" Link="Source\RequestMetric.cs" />
     <Compile Include="..\MoE.ModelManager\Services\IRequestTelemetryService.cs" Link="Source\IRequestTelemetryService.cs" />
     <Compile Include="..\MoE.ModelManager\Services\LlamaArgumentsBuilder.cs" Link="Source\LlamaArgumentsBuilder.cs" />
+    <Compile Include="..\MoE.ModelManager\Services\ThinkingModeDefaults.cs" Link="Source\ThinkingModeDefaults.cs" />
     <Compile Include="..\MoE.ModelManager\Services\ImageRuntimeArgumentsBuilder.cs" Link="Source\ImageRuntimeArgumentsBuilder.cs" />
     <Compile Include="..\MoE.ModelManager\Services\MediaDataUrlFactory.cs" Link="Source\MediaDataUrlFactory.cs" />
     <Compile Include="..\MoE.ModelManager\Services\MultimodalContentBuilder.cs" Link="Source\MultimodalContentBuilder.cs" />

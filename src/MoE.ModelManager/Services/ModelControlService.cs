@@ -136,7 +136,9 @@ internal sealed class ModelControlService : IModelControlService, IDisposable
             ModelKind.Text => _runtimeService.LoadAsync(
                 catalog.TextModels.First(model => model.Id == entry.Id),
                 CancellationToken.None),
-            ModelKind.Image => _imageRuntimeService.LoadAsync(catalog.ImageModel, CancellationToken.None),
+            ModelKind.Image => _imageRuntimeService.LoadAsync(
+                catalog.ImageModels.First(model => model.Id == entry.Id),
+                CancellationToken.None),
             ModelKind.Video => _videoRuntimeService.LoadAsync(catalog.VideoModel, CancellationToken.None),
             ModelKind.SpeechToText => _audioRuntimeService.LoadSpeechToTextAsync(catalog.AudioModel, CancellationToken.None),
             ModelKind.TextToSpeech => _audioRuntimeService.LoadTextToSpeechAsync(catalog.AudioModel, CancellationToken.None),
@@ -155,8 +157,8 @@ internal sealed class ModelControlService : IModelControlService, IDisposable
             _ => _audioRuntimeService.TextToSpeechCurrent,
         };
 
-        // The text runtime serves one of several models; the others report unloaded.
-        bool ownsSnapshot = kind != ModelKind.Text
+        // The text and image runtimes serve one of several models; the others report unloaded.
+        bool ownsSnapshot = kind is not (ModelKind.Text or ModelKind.Image)
             || string.Equals(snapshot.ModelId, id, StringComparison.OrdinalIgnoreCase);
         RuntimeStatus status = ownsSnapshot ? snapshot.Status : RuntimeStatus.Unloaded;
         string? detail = ownsSnapshot ? snapshot.Detail : null;
@@ -204,18 +206,18 @@ internal sealed class ModelControlService : IModelControlService, IDisposable
     {
         public Catalog(
             IReadOnlyList<ModelDefinition> textModels,
-            ImageModelDefinition imageModel,
+            IReadOnlyList<ImageModelDefinition> imageModels,
             VideoModelDefinition videoModel,
             AudioModelDefinition audioModel)
         {
             TextModels = textModels;
-            ImageModel = imageModel;
+            ImageModels = imageModels;
             VideoModel = videoModel;
             AudioModel = audioModel;
             Entries =
             [
                 .. textModels.Select(model => new CatalogEntry(model.Id, model.DisplayName, ModelKind.Text)),
-                new CatalogEntry(imageModel.Id, imageModel.DisplayName, ModelKind.Image),
+                .. imageModels.Select(model => new CatalogEntry(model.Id, model.DisplayName, ModelKind.Image)),
                 new CatalogEntry(videoModel.Id, videoModel.DisplayName, ModelKind.Video),
                 new CatalogEntry(ModelControlRules.SpeechToTextModelId, SpeechToTextName, ModelKind.SpeechToText),
                 new CatalogEntry(ModelControlRules.TextToSpeechModelId, TextToSpeechName, ModelKind.TextToSpeech),
@@ -224,7 +226,7 @@ internal sealed class ModelControlService : IModelControlService, IDisposable
 
         public IReadOnlyList<ModelDefinition> TextModels { get; }
 
-        public ImageModelDefinition ImageModel { get; }
+        public IReadOnlyList<ImageModelDefinition> ImageModels { get; }
 
         public VideoModelDefinition VideoModel { get; }
 

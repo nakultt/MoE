@@ -37,7 +37,7 @@ public sealed class ModelControlServiceTests
         IReadOnlyList<ControlledModel> models = await _service.GetModelsAsync(CancellationToken.None);
 
         CollectionAssert.AreEqual(
-            new[] { "gemma", "qwen", "flux", "wan", ModelControlRules.SpeechToTextModelId, ModelControlRules.TextToSpeechModelId },
+            new[] { "gemma", "qwen", "flux", "flux2", "wan", ModelControlRules.SpeechToTextModelId, ModelControlRules.TextToSpeechModelId },
             models.Select(model => model.Id).ToArray());
         Assert.IsTrue(models.All(model => model.Status == RuntimeStatus.Unloaded));
     }
@@ -58,6 +58,18 @@ public sealed class ModelControlServiceTests
         await _service.LoadAsync("flux");
 
         CollectionAssert.AreEqual(new[] { "eject text", "eject video", "load image" }, _calls);
+    }
+
+    [TestMethod]
+    public async Task LoadAsync_SecondImageModel_LoadsItAndOnlyItReportsReady()
+    {
+        await _service.LoadAsync("flux2");
+
+        CollectionAssert.AreEqual(new[] { "eject text", "eject video", "load image flux2" }, _calls);
+        ControlledModel? first = await _service.FindModelAsync("flux", CancellationToken.None);
+        ControlledModel? second = await _service.FindModelAsync("flux2", CancellationToken.None);
+        Assert.AreEqual(RuntimeStatus.Unloaded, first!.Status);
+        Assert.AreEqual(RuntimeStatus.Ready, second!.Status);
     }
 
     [TestMethod]
@@ -143,17 +155,13 @@ public sealed class ModelControlServiceTests
             ]);
         }
 
-        Task<ImageModelDefinition> IImageModelCatalogService.LoadAsync(CancellationToken cancellationToken)
+        Task<IReadOnlyList<ImageModelDefinition>> IImageModelCatalogService.LoadAsync(CancellationToken cancellationToken)
         {
-            return Task.FromResult(new ImageModelDefinition
-            {
-                Id = "flux",
-                DisplayName = "Flux",
-                Description = string.Empty,
-                DiffusionModelPath = "d",
-                TextEncoderPath = "t",
-                VaePath = "v",
-            });
+            return Task.FromResult<IReadOnlyList<ImageModelDefinition>>(
+            [
+                new ImageModelDefinition { Id = "flux", DisplayName = "Flux", Description = string.Empty, DiffusionModelPath = "d", TextEncoderPath = "t", VaePath = "v" },
+                new ImageModelDefinition { Id = "flux2", DisplayName = "Flux 2", Description = string.Empty, DiffusionModelPath = "d2", TextEncoderPath = "t2", VaePath = "v" },
+            ]);
         }
 
         Task<AudioModelDefinition> IAudioModelCatalogService.LoadAsync(CancellationToken cancellationToken)
@@ -212,7 +220,7 @@ public sealed class ModelControlServiceTests
 
     private sealed class FakeImageRuntime(List<string> calls) : FakeRuntime(calls, "image"), IImageRuntimeService
     {
-        public Task LoadAsync(ImageModelDefinition model, CancellationToken cancellationToken) => LoadCoreAsync(model.Id, "load image");
+        public Task LoadAsync(ImageModelDefinition model, CancellationToken cancellationToken) => LoadCoreAsync(model.Id, model.Id == "flux" ? "load image" : $"load image {model.Id}");
     }
 
     private sealed class FakeVideoRuntime(List<string> calls) : FakeRuntime(calls, "video"), IVideoRuntimeService

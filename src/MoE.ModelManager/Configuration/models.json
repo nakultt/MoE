@@ -16,6 +16,27 @@
     "measuredTokensPerSecond": 50.54
   },
   {
+    "id": "inkling-2-mini",
+    "displayName": "Inkling 2 Mini 26.4B",
+    "description": "Thinking Machines looped MoE (3.4B active) with vision; loop-core experts on GPU, 32K context, 18.64 TPS.",
+    "modelPath": "E:\\Models\\Inkling-2-Mini\\Inkling-2-Mini-UD-Q4_K_XL.gguf",
+    "visionProjectorPath": "E:\\Models\\Inkling-2-Mini\\mmproj-F16.gguf",
+    "visionImageTokens": 0,
+    "supportsReasoning": true,
+    "contextSize": 32768,
+    "cpuMoeLayers": 0,
+    "cacheType": "q8_0",
+    "threads": 16,
+    "draftModelPath": null,
+    "draftTokens": 0,
+    "measuredTokensPerSecond": 18.64,
+    "extraArguments": [
+      "-ot", "blk\\.(0|1|2|3|4|5|13|14|15|16|17|18|19|20|21|22|23)\\.ffn_(gate_up|up|gate|down)_exps.*=CPU",
+      "-ub", "128",
+      "--no-op-offload"
+    ]
+  },
+  {
     "id": "qwen3.6-35b-a3b",
     "displayName": "Qwen3.6 35B A3B",
     "description": "Optimized 8K direct decoding; measured at 41.18 TPS.",

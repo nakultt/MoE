@@ -112,12 +112,46 @@ public sealed class LlamaArgumentsBuilderTests
         Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => LlamaArgumentsBuilder.Build(model, port));
     }
 
+    [TestMethod]
+    public void BuildUsesModelSpecificDraftType()
+    {
+        ModelDefinition model = CreateModel(draftModelPath: @"C:\Models\dspark.gguf", draftTokens: 3, draftType: "draft-dspark");
+
+        IReadOnlyList<string> arguments = LlamaArgumentsBuilder.Build(model, 8092);
+
+        int specTypeIndex = arguments.ToList().IndexOf("--spec-type");
+        Assert.AreEqual("draft-dspark", arguments[specTypeIndex + 1]);
+    }
+
+    [TestMethod]
+    public void BuildAppendsModelSpecificExtraArguments()
+    {
+        ModelDefinition model = CreateModel(draftModelPath: null, draftTokens: 0, extraArguments: ["--temp", "1.0"]);
+
+        IReadOnlyList<string> arguments = LlamaArgumentsBuilder.Build(model, 8092);
+
+        Assert.AreEqual("--temp", arguments[^2]);
+        Assert.AreEqual("1.0", arguments[^1]);
+    }
+
+    [TestMethod]
+    public void BuildAddsNoExtraArgumentsByDefault()
+    {
+        ModelDefinition model = CreateModel(draftModelPath: null, draftTokens: 0);
+
+        IReadOnlyList<string> arguments = LlamaArgumentsBuilder.Build(model, 8092);
+
+        Assert.AreEqual("--metrics", arguments[^1]);
+    }
+
     private static ModelDefinition CreateModel(
         string? draftModelPath,
         int draftTokens,
         string? visionProjectorPath = null,
         int visionImageTokens = 0,
-        bool supportsReasoning = false)
+        bool supportsReasoning = false,
+        IReadOnlyList<string>? extraArguments = null,
+        string draftType = "draft-mtp")
     {
         return new ModelDefinition
         {
@@ -135,6 +169,8 @@ public sealed class LlamaArgumentsBuilderTests
             DraftModelPath = draftModelPath,
             DraftTokens = draftTokens,
             MeasuredTokensPerSecond = 50.65,
+            ExtraArguments = extraArguments ?? [],
+            DraftType = draftType,
         };
     }
 }

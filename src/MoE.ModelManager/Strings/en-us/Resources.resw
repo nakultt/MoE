@@ -141,6 +141,8 @@
   <data name="SpeechToTextModelCard.Kind" xml:space="preserve"><value>Speech to text</value></data>
   <data name="TextToSpeechModelCard.Kind" xml:space="preserve"><value>Text to speech</value></data>
   <data name="ModelsPagePicker.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Language model</value></data>
+  <data name="ModelsPageImagePicker.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Image model</value></data>
+  <data name="ImageModelPicker.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Image model</value></data>
   <data name="ModelFileRow.Label" xml:space="preserve"><value>Model file</value></data>
   <data name="VisionProjectorRow.Label" xml:space="preserve"><value>Vision projector</value></data>
   <data name="DraftModelRow.Label" xml:space="preserve"><value>Draft model</value></data>

@@ -13,8 +13,12 @@ public sealed class ImageRuntimeArgumentsBuilderTests
 
         IReadOnlyList<string> arguments = ImageRuntimeArgumentsBuilder.Build(model, 8093);
 
-        CollectionAssert.Contains(arguments.ToList(), "--diffusion-fa");
-        CollectionAssert.Contains(arguments.ToList(), "--vae-conv-direct");
+        CollectionAssert.DoesNotContain(arguments.ToList(), "--sage-attn");
+        int flashIndex = arguments.ToList().IndexOf("--flash-attn");
+        Assert.AreEqual("off,diffusion=on", arguments[flashIndex + 1]);
+        int convIndex = arguments.ToList().IndexOf("--conv-direct");
+        Assert.AreEqual("auto,vae=on", arguments[convIndex + 1]);
+        CollectionAssert.DoesNotContain(arguments.ToList(), "--diffusion-fa");
         CollectionAssert.Contains(arguments.ToList(), "diffusion=CUDA0,te=CUDA0,vae=CUDA0");
         int stepsIndex = arguments.ToList().IndexOf("--steps");
         Assert.AreEqual("4", arguments[stepsIndex + 1]);
@@ -41,6 +45,25 @@ public sealed class ImageRuntimeArgumentsBuilderTests
         ImageModelDefinition model = CreateModel();
 
         Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => ImageRuntimeArgumentsBuilder.Build(model, port));
+    }
+
+    [TestMethod]
+    public void BuildAppendsModelSpecificExtraArguments()
+    {
+        ImageModelDefinition model = new()
+        {
+            Id = "flux.2-klein-4b",
+            DisplayName = "FLUX.2",
+            Description = string.Empty,
+            DiffusionModelPath = "d.gguf",
+            TextEncoderPath = "t.gguf",
+            VaePath = "v.safetensors",
+            ExtraArguments = ["--sage-attn"],
+        };
+
+        IReadOnlyList<string> arguments = ImageRuntimeArgumentsBuilder.Build(model, 8093);
+
+        Assert.AreEqual("--sage-attn", arguments[^1]);
     }
 
     private static ImageModelDefinition CreateModel()

@@ -58,6 +58,7 @@ const brands = [
   ['flux.png', 'flux.svg', '#111111', 0.62, false],
   ['wan.png', 'wan.png', '#FFFFFF', 0.82, false],
   ['kokoro.png', 'kokoro.png', '#000000', 1, true],
+  ['thinkingmachines.png', 'thinkingmachines.png', '#FFFFFF', 1, true],
 ];
 
 async function render(page, html, width, height, out) {

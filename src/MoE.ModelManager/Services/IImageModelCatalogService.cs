@@ -4,5 +4,8 @@ namespace MoE.ModelManager.Services;
 
 internal interface IImageModelCatalogService
 {
-    Task<ImageModelDefinition> LoadAsync(CancellationToken cancellationToken);
+    /// <summary>
+    /// Loads the image models; the first entry is the default.
+    /// </summary>
+    Task<IReadOnlyList<ImageModelDefinition>> LoadAsync(CancellationToken cancellationToken);
 }

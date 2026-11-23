@@ -28,3 +28,4 @@ trademarks of their owners and are used only for that purpose.
 | `brands/flux.svg` | FLUX (Black Forest Labs) | [LobeHub Icons](https://github.com/lobehub/lobe-icons) (MIT) |
 | `brands/wan.png` | Wan (Alibaba Wan team) | [Wan-AI on Hugging Face](https://huggingface.co/Wan-AI) |
 | `brands/kokoro.png` | Kokoro (hexgrad) | [hexgrad on Hugging Face](https://huggingface.co/hexgrad) |
+| `brands/thinkingmachines.png` | Thinking Machines Lab (Inkling) | [thinkingmachines on Hugging Face](https://huggingface.co/thinkingmachines) |

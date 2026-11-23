@@ -1,0 +1,23 @@
+[
+  {
+    "id": "flux.3-image-klein",
+    "displayName": "FLUX.3 Image Klein",
+    "description": "Black Forest Labs FLUX.3 Image Klein (5.6B, distilled) with a Q4_K CUDA checkpoint and Qwen3-VL 4B text encoder.",
+    "diffusionModelPath": "E:\\Models\\flux3-klein\\flux3-image-klein-Q4_K.gguf",
+    "textEncoderPath": "E:\\Models\\flux3-klein\\Qwen3VL-4B-Instruct-Q4_K_M.gguf",
+    "vaePath": "E:\\Models\\flux2-klein\\flux2-vae.safetensors",
+    "steps": 16,
+    "threads": 14
+  },
+  {
+    "id": "flux.2-klein-4b",
+    "displayName": "FLUX.2 Klein 4B",
+    "description": "Fast four-step FLUX.2 Klein 4B distilled model with a Q4 CUDA checkpoint.",
+    "diffusionModelPath": "E:\\Models\\flux2-klein\\flux-2-klein-4b-Q4_0.gguf",
+    "textEncoderPath": "E:\\Models\\flux2-klein\\Qwen3-4B-Q4_K_M.gguf",
+    "vaePath": "E:\\Models\\flux2-klein\\flux2-vae.safetensors",
+    "steps": 4,
+    "threads": 14,
+    "extraArguments": [ "--sage-attn" ]
+  }
+]

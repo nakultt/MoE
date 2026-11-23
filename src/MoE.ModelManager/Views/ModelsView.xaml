@@ -109,6 +109,36 @@
             Publisher="{x:Bind ViewModel.ImageModelPublisher, Mode=OneWay}"
             Status="{x:Bind ViewModel.ImageRuntimeStatus, Mode=OneWay}"
             StatusText="{x:Bind ViewModel.ImageRuntimeStatusText, Mode=OneWay}">
+          <controls:ModelCard.Accessory>
+            <ComboBox
+                x:Uid="ModelsPageImagePicker"
+                MinWidth="220"
+                VerticalAlignment="Center"
+                AutomationProperties.AutomationId="ModelsPageImageModelPicker"
+                ItemsSource="{x:Bind ViewModel.ImageModels, Mode=OneWay}"
+                SelectedItem="{x:Bind ViewModel.ImageModel, Mode=TwoWay}">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="models:ImageModelDefinition">
+                  <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Image
+                        Width="18"
+                        Height="18"
+                        VerticalAlignment="Center"
+                        AutomationProperties.AccessibilityView="Raw">
+                      <Image.Source>
+                        <BitmapImage
+                            DecodePixelHeight="36"
+                            DecodePixelType="Logical"
+                            DecodePixelWidth="36"
+                            UriSource="{x:Bind LogoUri}" />
+                      </Image.Source>
+                    </Image>
+                    <TextBlock VerticalAlignment="Center" Text="{x:Bind DisplayName}" />
+                  </StackPanel>
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+          </controls:ModelCard.Accessory>
           <controls:ModelCard.Details>
             <StackPanel Spacing="4">
               <controls:PathRow x:Uid="DiffusionModelRow" PathText="{x:Bind ViewModel.ImageModelPath, Mode=OneWay}" />

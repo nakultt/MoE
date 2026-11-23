@@ -17,6 +17,7 @@ internal static class ModelBrandCatalog
         ("flux", "flux.png", "Black Forest Labs"),
         ("wan", "wan.png", "Wan"),
         ("kokoro", "kokoro.png", "hexgrad"),
+        ("inkling", "thinkingmachines.png", "Thinking Machines Lab"),
     ];
 
     /// <summary>

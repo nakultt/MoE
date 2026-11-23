@@ -1,23 +1,23 @@
 # MoE Model Manager
 
-Native WinUI 3 desktop control center for local Nemotron 3 Nano Omni, Qwen3.6, Gemma 4, FLUX.2 Klein, FastWan2.2, NVIDIA Parakeet, and Kokoro models. It provides multimodal Markdown chat, image/video generation, speech transcription, text-to-speech playback, and an OpenAI-compatible API.
+Native WinUI 3 desktop control center for local Inkling 2 Mini, Gemma 4, Qwen3.6, Nemotron 3 Nano Omni, FLUX.3 Image Klein, FLUX.2 Klein, FastWan2.2, NVIDIA Parakeet, and Kokoro models. It provides multimodal Markdown chat, image/video generation, speech transcription, text-to-speech playback, and an OpenAI-compatible API.
 
 ## What is included
 
 - Windows 11 Fluent interface: navigation pane (Chat, Images, Video, Audio, Models, API & activity, Settings), Mica backdrop, light/dark/high-contrast themes, and publisher logos for every model.
 - Model selection, load, eject, and live runtime status, with a **Models** page that lists every runtime, its files, and any load error.
-- Streaming local chat with native Markdown rendering and image, audio, or video attachments. All three chat models can switch reasoning on or off per request with a thinking-token budget, a context-window ring shows how much of the window the conversation has consumed, and **New chat** clears prior context without ejecting the model.
+- Streaming local chat with native Markdown rendering and image, audio, or video attachments. All four chat models can switch reasoning on or off per request with a thinking-token budget, a context-window ring shows how much of the window the conversation has consumed, and **New chat** clears prior context without ejecting the model.
 - Saved chat history on this PC: reopen, rename, delete, or export conversations as Markdown, and turn saving off or clear all history in **Settings**.
-- FLUX.2 Klein image generation with size selection, in-app preview, automatic local saving, and cancel support.
+- FLUX.3 Image Klein (default) and FLUX.2 Klein image generation with a model picker, size selection, in-app preview, automatic local saving, and cancel support.
 - FastWan2.2 three-step video generation with Turbo, Balanced, and Quality presets, in-app MP4 playback, local saving, and stop/eject support.
 - Native C# speech-to-text with Parakeet TDT 0.6B v3 INT8 and text-to-speech with Kokoro 82M, including editable transcription, voice/speed selection, WAV playback, and local saving.
 - OpenAI-compatible `GET`/`POST`/`DELETE` proxy at `http://127.0.0.1:8081/v1`.
 - Headless mode (`moe-manager --headless`) and a localhost-only control API (`/moe/models`, `/moe/load`, `/moe/eject`, `/moe/shutdown`) so scripts and coding agents can start the app and load models without the window.
 - Request activity showing chat TPS, image duration, or completed video generation duration for desktop and external API calls.
-- Pinned CUDA 12.4 llama.cpp runtime installer (`b10359`) with Nemotron Omni image, audio, and video input support.
-- Pinned CUDA 12 stable-diffusion.cpp image runtime (`e31a86c`).
+- Pinned llama.cpp runtime installer (`b12651`, CUDA 12.4) with Inkling 2 Mini looped-layer support and Nemotron Omni image, audio, and video input support.
+- Pinned official CUDA 12 stable-diffusion.cpp image runtime (`master-1117-0d71f96`) with native CUDA SageAttention.
 - Pinned FastVideo WSL runtime (`1b2b2a0`) with FP8 transformer quantization and layerwise offload.
-- In-process sherpa-onnx audio runtime; Python and a separate audio server are not required.
+- In-process sherpa-onnx 2.0.3 audio runtime; Python and a separate audio server are not required.
 - Reproducible x64 MSIX packaging script.
 
 The GGUF and safetensors files are intentionally not stored in this repository. The app and runtimes live in the repository, while large model files stay under `E:\Models`.
@@ -68,10 +68,10 @@ wsl --shutdown
 Run the runtime installation scripts to download and compile native backends:
 
 ```powershell
-# Install llama.cpp release b10359 with CUDA 12.4 into runtime\llama.cpp-b10359-cuda12.4
+# Install llama.cpp release b12651 with CUDA 12.4 into runtime\llama.cpp (version set in settings.ps1)
 .\scripts\install-runtime.ps1
 
-# Clone and compile stable-diffusion.cpp (e31a86c) with CUDA 12 into runtime\stable-diffusion.cpp
+# Download the pinned stable-diffusion.cpp CUDA 12 build (master-1117-0d71f96) into runtime\stable-diffusion.cpp
 .\scripts\install-image-runtime.ps1
 ```
 
@@ -80,14 +80,14 @@ Run the runtime installation scripts to download and compile native backends:
 Run the automated Hugging Face setup scripts to download model weights into `E:\Models` or another model directory:
 
 ```powershell
-# Download Qwen3.6 35B A3B & Gemma 4 26B A4B GGUFs, vision projectors, and MTP draft models (~36 GB)
+# Download Qwen3.6 35B A3B, Gemma 4 26B A4B & Inkling 2 Mini GGUFs, vision projectors, and MTP draft models (~54 GB)
 .\scripts\setup-llm-models.ps1 -ModelRoot 'E:\Models'
 
 # Download the low-memory GGUF and build the combined NVIDIA vision+audio projector (~22 GB total download)
 .\scripts\setup-nemotron-omni.ps1
 
-# Download FLUX.2 Klein 4B GGUF, Qwen3-4B text encoder, and VAE safetensors (~7.2 GB)
-.\scripts\install-image-model.ps1 -ModelDirectory 'E:\Models\flux2-klein'
+# Download FLUX.3 Image Klein Q4_K GGUF, Qwen3-VL 4B text encoder, and FLUX.2 VAE (~6.3 GB)
+.\scripts\install-image-model.ps1 -ModelDirectory 'E:\Models\flux3-klein'
 
 # Setup FastVideo WSL environment, apply 8 GB VRAM patch, and download FastWan2.2 5B video model (~24 GB)
 .\scripts\setup-video-runtime.ps1 -ModelDirectory 'E:\Models\fastwan2.2-5b'
@@ -101,7 +101,7 @@ Run the automated Hugging Face setup scripts to download model weights into `E:\
 If your models are stored outside the default directory, update the paths in the JSON configuration files under `src\MoE.ModelManager\Configuration\`:
 
 - **Text models:** [models.json](src/MoE.ModelManager/Configuration/models.json) (`modelPath`, `visionProjectorPath`, `draftModelPath`)
-- **Image model:** [image-model.json](src/MoE.ModelManager/Configuration/image-model.json) (`diffusionModelPath`, `textEncoderPath`, `vaePath`)
+- **Image model:** [image-models.json](src/MoE.ModelManager/Configuration/image-models.json) (`diffusionModelPath`, `textEncoderPath`, `vaePath`)
 - **Video model:** [video-model.json](src/MoE.ModelManager/Configuration/video-model.json) (`modelPath`)
 - **Audio models:** [audio-model.json](src/MoE.ModelManager/Configuration/audio-model.json) (`parakeetModelPath`, `kokoroModelPath`)
 
@@ -176,21 +176,32 @@ The pinned FastVideo checkout receives [an 8 GB compatibility patch](patches/fas
 | Qwen3.6 35B A3B Q4_K_M | 8,192 | F16 | 30 | Off | 41.18 TPS |
 | Gemma 4 26B A4B QAT UD-Q4_K_XL | 65,536 | Q4 | 20 | Q8 MTP, draft length 2 | 50.54 TPS |
 | Nemotron 3 Nano Omni 30B A3B APEX-I-Nano | 8,192 | Q8 | 40 | Off (no compatible draft tensors) | 38.83 TPS |
+| Inkling 2 Mini 26.4B UD-Q4_K_XL | 32,768 | Q8 | 17 of 24 (`-ot`, loop core 6–12 on GPU) | Off (DSpark not in mainline yet) | 18.64 TPS |
 
 Gemma is one main model. Its small Q8 MTP GGUF is a speculative-decoding helper, not a second chat model. Both files are loaded together when Gemma is selected.
 
 Short replies can report lower TPS because startup/prompt overhead dominates. Longer generations are the useful performance measurement.
 
-### FLUX.2 Klein image performance
+### Image model performance
 
-The image runtime uses the distilled four-step FLUX.2 Klein 4B architecture with a Q4 diffusion transformer and Q4 Qwen3 text encoder. Both run on CUDA; the VAE also stays on the GPU. The final configuration peaks near 6.34 GB VRAM and leaves headroom on the 8 GB RTX 4060.
+Two image models are configured in `Configuration/image-models.json`; the first is the default and the Images page has a picker.
 
-| Image size | Confirmed warm generation time |
-| --- | ---: |
-| **512×512 (default)** | **11.42 seconds** |
-| 768×768 | 25.88 seconds |
+- **FLUX.3 Image Klein (default):** 5.6B distilled transformer (Q4_K), Qwen3-VL 4B text encoder (Q4_K_M), FLUX.2 VAE, 16 steps. Best quality.
+- **FLUX.2 Klein 4B:** 4B distilled transformer (Q4_0), Qwen3 4B text encoder, four steps. Fastest.
 
-The official FP8 transformer was tested first but took several minutes at 512×512 in this C++ backend. The Q4 checkpoint produced good visual quality and was substantially faster. Only one LLM or image model is held on the GPU at a time; loading FLUX ejects Qwen/Gemma, and loading an LLM ejects FLUX.
+Everything runs on CUDA, including the VAE, with diffusion flash attention and direct VAE convolution. Native CUDA SageAttention (`--sage-attn`) is a per-model `extraArguments` flag: it speeds up FLUX.2 by about 30% but makes FLUX.3 slightly slower, so only FLUX.2 enables it. Re-run with `benchmarks\benchmark-flux.ps1 -ModelId <id> -Size 768x768`.
+
+Warm generation time on the RTX 4060 Laptop GPU (8 GB), stable-diffusion.cpp `master-1117-0d71f96`:
+
+| Model | 512×512 (default) | 768×768 | Peak VRAM |
+| --- | ---: | ---: | ---: |
+| **FLUX.3 Image Klein** (16 steps) | **5.57 s** | **15.20 s** | ~5.9 GB |
+| FLUX.3 Image Klein + `--sage-attn` | 6.05 s | 15.31 s | ~5.0 GB |
+| **FLUX.2 Klein 4B** + `--sage-attn` (4 steps) | **1.92 s** | **4.55 s** | ~5.2 GB |
+
+Upgrading stable-diffusion.cpp from `e31a86c` to `master-1117-0d71f96` (November 2026) cut FLUX.2 from 11.28 s to 3.13 s at 512×512 and from 33.79 s to 6.04 s at 768×768 before SageAttention.
+
+The official FP8 transformer was tested first but took several minutes at 512×512 in this C++ backend. The Q4 checkpoint produced good visual quality and was substantially faster. Only one LLM or image model is held on the GPU at a time; loading a FLUX model ejects the LLM, and loading an LLM ejects FLUX.
 
 ### Qwen embedded-MTP comparison
 
@@ -251,15 +262,49 @@ Q4 KV quantizes the K cache as well as the V cache, so long-context recall may d
 
 ---
 
+### llama.cpp runtime: b12651 with CUDA 12.4
+
+Inkling 2 Mini needs llama.cpp b12611 or newer (`inkling2_loop`), so the bundled runtime moved from b10359 to b12651 (November 2026). Every flag the app passes was rechecked. On the same b12651 build, the CUDA 12.4 binaries decoded Gemma about 20% faster than the CUDA 13.5 binaries on this RTX 4060 Laptop GPU, so the app ships CUDA 12.4:
+
+| Gemma 4 26B A4B, same settings | Runs (median TPS) |
+| --- | --- |
+| b10359 + CUDA 12.4 (previous) | 47.73, 44.56 |
+| b12651 + CUDA 13.5 | 45.96, 42.96, 47.82, 40.58, 43.47 |
+| **b12651 + CUDA 12.4 (shipped)** | **64.11, 51.37, 51.88** |
+
+Absolute numbers drift with laptop temperature; runtimes were alternated back to back. Change the build or CUDA version in `settings.ps1` and add its hashes to `scripts\install-runtime.ps1`; `install-runtime.ps1 -Destination runtime\llama.cpp-test -Cuda 13.5` installs a second copy for A/B tests with `benchmarks\benchmark-model.ps1 -RuntimeDir`.
+
+### Inkling 2 Mini 26.4B
+
+[Thinking Machines Inkling 2 Mini](https://huggingface.co/thinkingmachines/Inkling-2-Mini) is a looped MoE: 24 layers with 128 experts (8 active), where layers 6–17 run three times per token, so every token takes 48 layer passes. The app uses Unsloth's mainline-layout [`UD-Q4_K_XL`](https://huggingface.co/unsloth/Inkling-2-Mini-GGUF/tree/main/Mainline_Support) (17.6 GB) and the F16 vision projector.
+
+Tuning findings on 8 GB VRAM + 32 GB RAM:
+
+- `-ncmoe` does not move Inkling's fused `ffn_gate_up_exps` tensors (9.8 GB), so they overflowed into shared GPU memory. The catalog uses an explicit `-ot` override instead (`extraArguments` in `models.json`).
+- The default 512-token micro-batch reserved a 9.9 GB CUDA compute buffer. `-ub 128 --no-op-offload` cuts it to 0.84 GB.
+- The freed VRAM holds the experts of loop-core layers 6–12 (each runs three times per token); all other experts stay in system RAM.
+- 16 threads is fastest (12: 17.9, 8: 14.7, 20: 11.2 TPS).
+- The DSpark drafter needs the unmerged llama.cpp PR #32218 and does not load in b12651.
+
+| Inkling configuration | Median TPS |
+| --- | ---: |
+| `-ncmoe 24` (experts overflow VRAM) | 12.06 |
+| `-ot` all experts on CPU, `-ub 128 --no-op-offload` | 12.85 |
+| + loop-core 6–11 on GPU | 17.32 |
+| **+ loop-core 6–12 on GPU (shipped)** | **18.64** |
+| + loop-core 6–13 on GPU (VRAM full) | 17.32 |
+
+Inkling is slower than Gemma here because each token needs 48 layer passes and about 27 of them still use CPU-resident experts; even an A100 40 GB with the whole model on the GPU decodes it at about 46 TPS without DSpark. Gemma stays the default chat model. Inkling's template ignores `enable_thinking` and reads `reasoning_effort`, and it still writes a short plan at effort zero, so a non-thinking request also gets `reasoning_effort: "none"` and `reasoning_budget_tokens: 0` (see `ThinkingModeDefaults.cs`).
+
 ### Nemotron 3 Nano Omni 30B A3B
 
-[NVIDIA Nemotron 3 Nano Omni 30B A3B Reasoning](https://huggingface.co/nvidia/Nemotron-3-Nano-Omni-30B-A3B-Reasoning-BF16) is the app's general media-understanding model. It accepts text, images, audio, and video and produces text. It does not generate image, audio, or video files; FLUX.2, Kokoro, and FastWan remain the dedicated generation backends.
+[NVIDIA Nemotron 3 Nano Omni 30B A3B Reasoning](https://huggingface.co/nvidia/Nemotron-3-Nano-Omni-30B-A3B-Reasoning-BF16) is the app's general media-understanding model. It accepts text, images, audio, and video and produces text. It does not generate image, audio, or video files; FLUX.3, Kokoro, and FastWan remain the dedicated generation backends.
 
 The configured [`APEX-I-Nano` GGUF](https://huggingface.co/mudler/Nemotron-3-Nano-Omni-30B-A3B-Reasoning-APEX-GGUF) is a community low-memory quant derived from NVIDIA's official reasoning checkpoint. Its 16.77 GiB model plus 2.783 GiB CPU-resident multimodal projector can run with expert offload on this machine's 8 GB RTX 4060 and 32 GB system RAM. The projector is rebuilt locally from NVIDIA's official BF16 media shard and contains both CRADIO vision and Parakeet audio encoders; the community repository's supplied 1.48 GiB projector contains vision tensors only despite its model-card description. NVIDIA's official FP8/NVFP4 deployment requires substantially more VRAM and is not used by this configuration. The optimized profile keeps the first 40 layers' MoE weights on CPU, moves later expert weights to the GPU, uses an 8,192-token context and Q8 KV cache, and leaves the projector in system RAM.
 
 This is not NVIDIA's reference/native-video deployment. NVIDIA specifies at least an RTX 5090 32 GB for the official 21 GB NVFP4 checkpoint, 48 GB for FP8, or an H100 80 GB for BF16. The reference vLLM pipeline samples video at up to 1–2 FPS / 128–256 frames and can process embedded audio. On the 8 GB/32 GB profile, the desktop app uniformly samples four 384×384 frames across the complete clip and submits them through CRADIO as an ordered image sequence, while the first embedded audio track is submitted separately through Parakeet. This avoids llama.cpp's long-video context/RAM failure while preserving local video+speech Q&A, but temporal accuracy may differ from the official vLLM/TensorRT pipeline.
 
-Use the **Think** menu in the Chat message box. Turning it off sends `chat_template_kwargs.enable_thinking=false`; turning it on sends `true`. The switch applies to all three chat models, not just Nemotron. The same field is available to external API clients. Attach one supported file per desktop message:
+Use the **Think** menu in the Chat message box. Turning it off sends `chat_template_kwargs.enable_thinking=false`; turning it on sends `true`. The switch applies to all four chat models, not just Nemotron. The same field is available to external API clients. Attach one supported file per desktop message:
 
 | Input | Desktop limit | Formats |
 | --- | ---: | --- |
@@ -279,7 +324,7 @@ For direct llama.cpp use without the desktop app:
 
 ## Reasoning and context use
 
-All three chat models expose a thinking channel, so `supportsReasoning` is set for each of them in `Configuration/models.json` and the **Think** menu is live for all three.
+All four chat models expose a thinking channel, so `supportsReasoning` is set for each of them in `Configuration/models.json` and the **Think** menu is live for all four.
 
 ### Every request defaults to non-thinking
 
@@ -330,10 +375,12 @@ This section provides complete, production-ready documentation of the OpenAI-com
 
 | Model ID | Type | Runtime | Description |
 | --- | --- | --- | --- |
+| `inkling-2-mini` | Text (LLM) | llama.cpp (CUDA) | Inkling 2 Mini 26.4B looped MoE (3.4B active), UD-Q4_K_XL, 32K context, 18.64 TPS, vision-capable |
 | `gemma-4-26b-a4b` | Text (LLM) | llama.cpp (CUDA) | Gemma 4 26B A4B, QAT UD-Q4_K_XL with Q8 MTP, 64K context, 50.54 TPS, vision-capable (default) |
 | `qwen3.6-35b-a3b` | Text (LLM) | llama.cpp (CUDA) | Qwen3.6 35B A3B, Q4_K_M, 41.18 TPS, vision-capable |
 | `nemotron-3-nano-omni-30b-a3b` | Text output, omni input | llama.cpp (CUDA/CPU) | Nemotron 3 Nano Omni community GGUF; text, image, audio, and video understanding with optional reasoning |
-| `flux.2-klein-4b` | Image | stable-diffusion.cpp (CUDA) | FLUX.2 Klein 4B Distilled, Q4, four-step generation |
+| `flux.3-image-klein` | Image | stable-diffusion.cpp (CUDA) | FLUX.3 Image Klein 5.6B, Q4_K, 16-step distilled, Qwen3-VL 4B encoder (default) |
+| `flux.2-klein-4b` | Image | stable-diffusion.cpp (CUDA) | FLUX.2 Klein 4B, Q4_0, four-step distilled (fastest) |
 | `fastwan2.2-ti2v-5b` | Video | FastVideo (WSL/CUDA) | FastWan2.2 TI2V 5B, FP8, three-step generation |
 | `kokoro-82m` | Audio (TTS) | sherpa-onnx (CPU) | Kokoro 82M, 11 voices, WAV output |
 | `parakeet-tdt-0.6b-v3` | Audio (STT) | sherpa-onnx (CPU) | Parakeet TDT 0.6B v3 INT8, greedy decoding |
@@ -425,7 +472,8 @@ Text, image, and video share the GPU, so loading one ejects the other two first,
 {
   "models": [
     { "id": "gemma-4-26b-a4b", "name": "Gemma 4 26B A4B", "kind": "text", "status": "ready", "detail": null },
-    { "id": "flux.2-klein-4b", "name": "FLUX.2 Klein 4B Distilled", "kind": "image", "status": "unloaded", "detail": null },
+    { "id": "flux.3-image-klein", "name": "FLUX.3 Image Klein", "kind": "image", "status": "unloaded", "detail": null },
+    { "id": "flux.2-klein-4b", "name": "FLUX.2 Klein 4B", "kind": "image", "status": "unloaded", "detail": null },
     { "id": "parakeet-tdt-0.6b-v3", "name": "NVIDIA Parakeet TDT 0.6B v3", "kind": "speech-to-text", "status": "unloaded", "detail": null }
   ]
 }
@@ -550,7 +598,7 @@ Standard OpenAI chat completions endpoint. Supports both streaming (SSE) and non
 
 #### Request body — Nemotron audio/video with reasoning disabled
 
-Use `input_audio` or `input_video`; `data` accepts either raw base64 or a data URL, while `url` accepts a reachable media URL. Place audio/video items before their text question, matching NVIDIA's reference Nemotron format. The public app API automatically removes data-URL prefixes before forwarding audio/video to llama.cpp b10359. The desktop app performs the same normalization and ordering for local attachments. If calling `llama-server` directly instead of port 8081, send raw base64 for audio and video.
+Use `input_audio` or `input_video`; `data` accepts either raw base64 or a data URL, while `url` accepts a reachable media URL. Place audio/video items before their text question, matching NVIDIA's reference Nemotron format. The public app API automatically removes data-URL prefixes before forwarding audio/video to llama.cpp. The desktop app performs the same normalization and ordering for local attachments. If calling `llama-server` directly instead of port 8081, send raw base64 for audio and video.
 
 ```json
 {
@@ -595,7 +643,7 @@ Use `input_audio` or `input_video`; `data` accepts either raw base64 or a data U
 | `stream` | `boolean` | No | `false` | Enable SSE streaming |
 | `stream_options` | `object` | No | — | Set `{"include_usage": true}` for usage in final SSE chunk (auto-injected by proxy) |
 | `temperature` | `number` | No | `0.2` | Sampling temperature |
-| `chat_template_kwargs.enable_thinking` | `boolean` | No | `false` | Enables or disables the reasoning trace on any of the three chat models; the proxy injects `false` when the field is absent |
+| `chat_template_kwargs.enable_thinking` | `boolean` | No | `false` | Enables or disables the reasoning trace on any of the four chat models; the proxy injects `false` when the field is absent |
 | `reasoning_budget_tokens` | `integer` | No | `-1` (unbounded) | Caps the thinking channel at N tokens so the visible answer is still produced; also accepted as `thinking_budget_tokens` |
 
 ##### Multimodal content array items
@@ -670,15 +718,15 @@ data: [DONE]
 
 ### `POST /v1/images/generations`
 
-Generate an image using the FLUX.2 Klein diffusion pipeline.
+Generate an image with the loaded FLUX model (FLUX.3 Image Klein by default, or FLUX.2 Klein).
 
-**Prerequisite:** The image model (`flux.2-klein-4b`) must be loaded.
+**Prerequisite:** An image model (`flux.3-image-klein` or `flux.2-klein-4b`) must be loaded with `POST /moe/load`. The request is served by whichever image model is loaded.
 
 #### Request body
 
 ```json
 {
-  "model": "flux.2-klein-4b",
+  "model": "flux.3-image-klein",
   "prompt": "A tiny glass greenhouse on a mossy forest floor at sunrise",
   "n": 1,
   "size": "512x512",
@@ -688,7 +736,7 @@ Generate an image using the FLUX.2 Klein diffusion pipeline.
 
 | Field | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `model` | `string` | Yes | — | Must be `"flux.2-klein-4b"` |
+| `model` | `string` | Yes | — | `"flux.3-image-klein"` or `"flux.2-klein-4b"` (the loaded model answers) |
 | `prompt` | `string` | Yes | — | Text description of the desired image |
 | `n` | `integer` | No | `1` | Number of images (currently only `1` is supported) |
 | `size` | `string` | No | `"512x512"` | Image dimensions. Supported: `"512x512"`, `"768x768"` |
@@ -722,7 +770,7 @@ from openai import OpenAI
 
 client = OpenAI(base_url="http://127.0.0.1:8081/v1", api_key="local")
 result = client.images.generate(
-    model="flux.2-klein-4b",
+    model="flux.3-image-klein",
     prompt="A tiny glass greenhouse on a mossy forest floor at sunrise",
     size="512x512",
     response_format="b64_json",
@@ -1276,24 +1324,24 @@ The end-to-end local verification passed all five paths with the combined projec
 
 ---
 
-### Model 4: FLUX.2 Klein 4B — Image generation (Diffusion)
+### Model 4: FLUX.3 Image Klein — Image generation (Diffusion)
 
 ```mermaid
 graph TB
-    subgraph FLUXModel["FLUX.2 Klein 4B · Distilled 4-Step"]
+    subgraph FLUXModel["FLUX.3 Image Klein 5.6B · Distilled 16-Step"]
         direction TB
 
         subgraph TextEncoding["Text Encoding Stage"]
             PROMPT["User Prompt"]
-            QWEN["Qwen3 4B Text Encoder<br/>Q4_K_M GGUF<br/>CUDA"]
+            QWEN["Qwen3-VL 4B Text Encoder<br/>Q4_K_M GGUF<br/>CUDA"]
             CLIP["Text Embeddings<br/>Conditioning Vector"]
         end
 
-        subgraph DiffusionStage["Diffusion Stage · 4 Steps"]
+        subgraph DiffusionStage["Diffusion Stage · 16 Steps"]
             NOISE["Gaussian Noise<br/>Latent Space Initialization"]
-            DIT["Diffusion Transformer<br/>Q4_0 GGUF · CUDA<br/>Flash Attention"]
+            DIT["Diffusion Transformer<br/>Q4_K GGUF · CUDA<br/>Flash + SageAttention"]
             SCHED["Flow Matching Scheduler<br/>CFG Scale 1.0<br/>Random Seed"]
-            DENOISE["Iterative Denoising<br/>4 Distilled Steps"]
+            DENOISE["Iterative Denoising<br/>16 Distilled Steps"]
         end
 
         subgraph Decoding["VAE Decoding Stage"]
@@ -1574,7 +1622,7 @@ graph LR
 
     QWEN["Qwen3.6<br/>LLM"] -->|"ejects others"| SLOT
     GEMMA["Gemma 4<br/>LLM"] -->|"ejects others"| SLOT
-    FLUX["FLUX.2 Klein<br/>Image"] -->|"ejects others"| SLOT
+    FLUX["FLUX.3 Image Klein<br/>Image"] -->|"ejects others"| SLOT
     FAST["FastWan2.2<br/>Video"] -->|"ejects others"| SLOT
 
     subgraph CPU["System CPU · Unrestricted"]
@@ -1617,7 +1665,7 @@ dotnet build .\src\MoE.ModelManager\MoE.ModelManager.csproj -c Debug -p:Platform
 dotnet run --project .\src\MoE.ModelManager\MoE.ModelManager.csproj -c Debug -p:Platform=x64
 ```
 
-If an LLM GGUF moves, edit its absolute path in [models.json](src/MoE.ModelManager/Configuration/models.json). FLUX paths live in [image-model.json](src/MoE.ModelManager/Configuration/image-model.json), FastWan settings live in [video-model.json](src/MoE.ModelManager/Configuration/video-model.json), and Parakeet/Kokoro paths and voices live in [audio-model.json](src/MoE.ModelManager/Configuration/audio-model.json).
+If an LLM GGUF moves, edit its absolute path in [models.json](src/MoE.ModelManager/Configuration/models.json). FLUX paths live in [image-models.json](src/MoE.ModelManager/Configuration/image-models.json), FastWan settings live in [video-model.json](src/MoE.ModelManager/Configuration/video-model.json), and Parakeet/Kokoro paths and voices live in [audio-model.json](src/MoE.ModelManager/Configuration/audio-model.json).
 
 ## Fallback llama.cpp Web UI launchers
 
@@ -1702,7 +1750,7 @@ Invoke-RestMethod `
     -Body $body
 ```
 
-Text model IDs are `qwen3.6-35b-a3b` and `gemma-4-26b-a4b`; the image model ID is `flux.2-klein-4b`; the video model ID is `fastwan2.2-ti2v-5b`. Audio endpoints accept `kokoro-82m` and `parakeet-tdt-0.6b-v3`. Requests from the built-in UI are labeled **Desktop**; requests from other processes are labeled **External**.
+Text model IDs are `inkling-2-mini`, `gemma-4-26b-a4b`, `qwen3.6-35b-a3b` and `nemotron-3-nano-omni-30b-a3b`; image model IDs are `flux.3-image-klein` and `flux.2-klein-4b`; the video model ID is `fastwan2.2-ti2v-5b`. Audio endpoints accept `kokoro-82m` and `parakeet-tdt-0.6b-v3`. Requests from the built-in UI are labeled **Desktop**; requests from other processes are labeled **External**.
 
 Load the relevant STT or TTS model in the app, then use its OpenAI-compatible speech endpoint. The first version intentionally uses WAV for both input and output:
 
@@ -1737,7 +1785,7 @@ from openai import OpenAI
 
 client = OpenAI(base_url="http://127.0.0.1:8081/v1", api_key="local")
 result = client.images.generate(
-    model="flux.2-klein-4b",
+    model="flux.3-image-klein",
     prompt="A tiny glass greenhouse on a mossy forest floor at sunrise",
     size="512x512",
     response_format="b64_json",

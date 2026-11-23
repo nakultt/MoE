@@ -7,12 +7,13 @@ public sealed class ModelBrandCatalogTests
 {
     [DataRow("qwen3.6-35b-a3b", "qwen.png", "Alibaba Cloud")]
     [DataRow("gemma-4-26b-a4b", "gemma.png", "Google")]
+    [DataRow("inkling-2-mini", "thinkingmachines.png", "Thinking Machines Lab")]
     [DataRow("nemotron-3-nano-omni-30b-a3b", "nvidia.png", "NVIDIA")]
     [DataRow("parakeet-v3-kokoro-82m", "nvidia.png", "NVIDIA")]
     [DataRow("kokoro", "kokoro.png", "hexgrad")]
-    [DataRow("flux.2-klein-4b", "flux.png", "Black Forest Labs")]
+    [DataRow("flux.3-image-klein", "flux.png", "Black Forest Labs")]
     [DataRow("fastwan2.2-ti2v-5b", "wan.png", "Wan")]
-    [DataRow("FLUX.2 Klein 4B Distilled", "flux.png", "Black Forest Labs")]
+    [DataRow("FLUX.3 Image Klein", "flux.png", "Black Forest Labs")]
     [TestMethod]
     public void GetLogo_KnownModel_ReturnsPublisherLogo(string modelKey, string asset, string publisher)
     {

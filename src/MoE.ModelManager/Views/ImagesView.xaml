@@ -5,6 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:MoE.ModelManager.Controls"
     xmlns:helpers="using:MoE.ModelManager.Helpers"
+    xmlns:models="using:MoE.ModelManager.Models"
     IsTabStop="False">
 
   <Grid
@@ -21,13 +22,43 @@
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*" />
         <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
       <TextBlock
           x:Uid="ImagesHeading"
           VerticalAlignment="Center"
           Style="{StaticResource PageTitleTextStyle}" />
-      <controls:RuntimeControlBar
+      <ComboBox
           Grid.Column="1"
+          x:Uid="ImageModelPicker"
+          MinWidth="220"
+          VerticalAlignment="Center"
+          AutomationProperties.AutomationId="ImageModelPicker"
+          ItemsSource="{x:Bind ViewModel.ImageModels, Mode=OneWay}"
+          SelectedItem="{x:Bind ViewModel.ImageModel, Mode=TwoWay}">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="models:ImageModelDefinition">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <Image
+                  Width="18"
+                  Height="18"
+                  VerticalAlignment="Center"
+                  AutomationProperties.AccessibilityView="Raw">
+                <Image.Source>
+                  <BitmapImage
+                      DecodePixelHeight="36"
+                      DecodePixelType="Logical"
+                      DecodePixelWidth="36"
+                      UriSource="{x:Bind LogoUri}" />
+                </Image.Source>
+              </Image>
+              <TextBlock VerticalAlignment="Center" Text="{x:Bind DisplayName}" />
+            </StackPanel>
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <controls:RuntimeControlBar
+          Grid.Column="2"
           EjectAutomationId="EjectImageModelButton"
           EjectCommand="{x:Bind ViewModel.EjectImageModelCommand}"
           LoadAutomationId="LoadImageModelButton"

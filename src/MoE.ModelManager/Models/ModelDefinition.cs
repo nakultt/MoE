@@ -78,6 +78,11 @@ public sealed class ModelDefinition
     public string? DraftModelPath { get; init; }
 
     /// <summary>
+    /// Gets the llama.cpp speculative decoding type used with <see cref="DraftModelPath"/>, such as draft-mtp or draft-dspark.
+    /// </summary>
+    public string DraftType { get; init; } = "draft-mtp";
+
+    /// <summary>
     /// Gets the maximum MTP draft length.
     /// </summary>
     public int DraftTokens { get; init; }
@@ -86,6 +91,11 @@ public sealed class ModelDefinition
     /// Gets the measured sustained generation speed.
     /// </summary>
     public double MeasuredTokensPerSecond { get; init; }
+
+    /// <summary>
+    /// Gets optional llama-server arguments appended after the generated ones, for model-specific flags.
+    /// </summary>
+    public IReadOnlyList<string> ExtraArguments { get; init; } = [];
 
     /// <summary>
     /// Gets a value indicating whether MTP speculative decoding is configured.

@@ -1,20 +1,41 @@
 param(
-    [switch]$Force
+    [switch]$Force,
+
+    # Install into another folder (for example to benchmark a newer build) instead of $LlamaRuntimeDir.
+    [string]$Destination,
+
+    [ValidateSet('12.4', '13.5')]
+    [string]$Cuda = $LlamaRuntimeCuda
 )
 
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = Split-Path $PSScriptRoot -Parent
 . (Join-Path $repoRoot 'settings.ps1')
+if ([string]::IsNullOrWhiteSpace($Cuda)) {
+    $Cuda = $LlamaRuntimeCuda
+}
+if (-not [string]::IsNullOrWhiteSpace($Destination)) {
+    $LlamaRuntimeDir = [IO.Path]::GetFullPath($Destination)
+}
 
-$release = 'b10359'
-$baseName = 'llama-b10359-bin-win-cuda-12.4-x64.zip'
-$cudaName = 'cudart-llama-bin-win-cuda-12.4-x64.zip'
+# To upgrade llama.cpp: change $LlamaRuntimeRelease in settings.ps1 and the hashes below
+# (GitHub shows each asset's sha256 digest on the release page).
+$release = $LlamaRuntimeRelease
+$baseName = "llama-$release-bin-win-cuda-$Cuda-x64.zip"
+$cudaName = "cudart-llama-bin-win-cuda-$Cuda-x64.zip"
 $baseUrl = "https://github.com/ggml-org/llama.cpp/releases/download/$release/$baseName"
 $cudaUrl = "https://github.com/ggml-org/llama.cpp/releases/download/$release/$cudaName"
 $expectedHashes = @{
-    $baseName = '73365C6A5FADACCB25502CF054CF5E692C7E4D58CA9E2E228415223470E7D06E'
-    $cudaName = '8C79A9B226DE4B3CACFD1F83D24F962D0773BE79F1E7B75C6AF4DED7E32AE1D6'
+    'llama-b12651-bin-win-cuda-12.4-x64.zip' = '1A6C090F76FAB41260B5B7597C6FB1ADD1FAD2EFAAC692AE2673A22366220A29'
+    'cudart-llama-bin-win-cuda-12.4-x64.zip' = '8C79A9B226DE4B3CACFD1F83D24F962D0773BE79F1E7B75C6AF4DED7E32AE1D6'
+    'llama-b12651-bin-win-cuda-13.5-x64.zip' = '5AD87E0771F3A129F6461B5FC706D8C2C5E5B71B2BD1F953A4221CA4D7797FEF'
+    'cudart-llama-bin-win-cuda-13.5-x64.zip' = 'C2BF4CC202BFBAAA7A0B75F5082457C3811326947BB216059B72839D844E9CBA'
+}
+foreach ($name in @($baseName, $cudaName)) {
+    if (-not $expectedHashes.ContainsKey($name)) {
+        throw "No pinned SHA256 for $name. Add it to scripts\install-runtime.ps1."
+    }
 }
 
 $resolvedRepo = (Resolve-Path -LiteralPath $repoRoot).Path
@@ -23,12 +44,15 @@ if (-not $LlamaRuntimeDir.StartsWith($resolvedRepo, [System.StringComparison]::O
     throw "Refusing to modify runtime outside the repository: $LlamaRuntimeDir"
 }
 
-if (Test-Path -LiteralPath (Join-Path $LlamaRuntimeDir 'llama-server.exe')) {
-    if (-not $Force) {
-        Write-Host "Runtime is already installed at $LlamaRuntimeDir"
-        Write-Host 'Use -Force only if you intentionally want to reinstall it.'
+$versionMarker = Join-Path $LlamaRuntimeDir 'moe-runtime-version.txt'
+$wantedVersion = "$release-cuda$Cuda"
+if (Test-Path -LiteralPath $LlamaRuntimeDir) {
+    $installedVersion = if (Test-Path -LiteralPath $versionMarker) { (Get-Content -LiteralPath $versionMarker -Raw).Trim() } else { '' }
+    if ($installedVersion -eq $wantedVersion -and -not $Force) {
+        Write-Host "llama.cpp $wantedVersion is already installed at $LlamaRuntimeDir"
         exit 0
     }
+    Write-Host "Replacing runtime '$installedVersion' with $wantedVersion..."
     Remove-Item -LiteralPath $LlamaRuntimeDir -Recurse -Force
 }
 
@@ -65,4 +89,5 @@ if (-not (Test-Path -LiteralPath (Join-Path $LlamaRuntimeDir 'ggml-cuda.dll'))) 
     throw 'Runtime installation did not produce ggml-cuda.dll.'
 }
 
-Write-Host "Installed llama.cpp $release with CUDA 12.4 at $LlamaRuntimeDir"
+Set-Content -LiteralPath $versionMarker -Value $wantedVersion -Encoding ascii
+Write-Host "Installed llama.cpp $release with CUDA $Cuda at $LlamaRuntimeDir"

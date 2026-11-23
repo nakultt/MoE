@@ -1,3 +1,5 @@
+using MoE.ModelManager.Services;
+
 namespace MoE.ModelManager.Models;
 
 /// <summary>
@@ -44,4 +46,19 @@ public sealed class ImageModelDefinition
     /// Gets the CPU worker count.
     /// </summary>
     public int Threads { get; init; } = 14;
+
+    /// <summary>
+    /// Gets optional sd-server arguments appended after the generated ones, such as --sage-attn.
+    /// </summary>
+    public IReadOnlyList<string> ExtraArguments { get; init; } = [];
+
+    /// <summary>
+    /// Gets the packaged publisher logo shown beside the model.
+    /// </summary>
+    public Uri LogoUri => ModelBrandCatalog.GetLogo(Id);
+
+    /// <summary>
+    /// Gets the model publisher name, or an empty string when unknown.
+    /// </summary>
+    public string Publisher => ModelBrandCatalog.GetPublisher(Id);
 }

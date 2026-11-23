@@ -43,6 +43,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly IAppSettingsService _settingsService;
     private readonly SynchronizationContext? _uiContext;
     private CancellationTokenSource? _generationCancellation;
+    private ImageModelDefinition? _imageModel;
     private CancellationTokenSource? _imageGenerationCancellation;
     private CancellationTokenSource? _audioOperationCancellation;
     private CancellationTokenSource? _videoGenerationCancellation;
@@ -366,6 +367,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<ModelDefinition> Models { get; } = [];
 
+    /// <summary>
+    /// Gets the configured image models; the first entry is the default.
+    /// </summary>
+    public ObservableCollection<ImageModelDefinition> ImageModels { get; } = [];
+
     public ObservableCollection<ChatMessage> Messages { get; } = [];
 
     public ObservableCollection<RequestMetric> RequestMetrics { get; } = [];
@@ -470,7 +476,30 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public IReadOnlyList<VideoGenerationPreset> VideoPresets { get; }
 
-    public ImageModelDefinition? ImageModel { get; private set; }
+    /// <summary>
+    /// Gets or sets the image model selected on the Images and Models pages.
+    /// </summary>
+    public ImageModelDefinition? ImageModel
+    {
+        get => _imageModel;
+        set
+        {
+            if (!SetProperty(ref _imageModel, value))
+            {
+                return;
+            }
+
+            OnPropertyChanged(nameof(ImageModelName));
+            OnPropertyChanged(nameof(ImageModelDescription));
+            OnPropertyChanged(nameof(ImageModelPath));
+            OnPropertyChanged(nameof(ImageTextEncoderPath));
+            OnPropertyChanged(nameof(ImageVaePath));
+            OnPropertyChanged(nameof(ImageModelLogo));
+            OnPropertyChanged(nameof(ImageModelPublisher));
+            LoadImageModelCommand.NotifyCanExecuteChanged();
+            GenerateImageCommand.NotifyCanExecuteChanged();
+        }
+    }
 
     public VideoModelDefinition? VideoModel { get; private set; }
 
@@ -771,7 +800,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         // Headless mode or the control API may have loaded a model before this window opened.
         SelectedModel = Models.FirstOrDefault(model => model.Id == _runtimeService.Current.ModelId)
             ?? Models.FirstOrDefault();
-        ImageModel = await _imageModelCatalogService.LoadAsync(cancellationToken);
+        foreach (ImageModelDefinition imageModel in await _imageModelCatalogService.LoadAsync(cancellationToken))
+        {
+            ImageModels.Add(imageModel);
+        }
+
+        ImageModel = ImageModels.FirstOrDefault(model => model.Id == _imageRuntimeService.Current.ModelId)
+            ?? ImageModels.FirstOrDefault();
         AudioModel = await _audioModelCatalogService.LoadAsync(cancellationToken);
         VideoModel = await _videoModelCatalogService.LoadAsync(cancellationToken);
         OnPropertyChanged(nameof(ImageModelName));
@@ -1417,6 +1452,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             && ImageRuntimeStatus is RuntimeStatus.Unloaded or RuntimeStatus.Error;
     }
 
+    private bool IsSelectedImageModelLoaded()
+    {
+        return ImageModel is not null
+            && string.Equals(_imageRuntimeService.Current.ModelId, ImageModel.Id, StringComparison.OrdinalIgnoreCase);
+    }
+
     [RelayCommand(CanExecute = nameof(CanLoadImageModel))]
     private async Task LoadImageModelAsync()
     {
@@ -1457,7 +1498,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private bool CanGenerateImage()
     {
         return ImageRuntimeStatus == RuntimeStatus.Ready
-            && ImageModel is not null
+            && IsSelectedImageModelLoaded()
             && !IsImageGenerating;
     }
 
@@ -1974,12 +2015,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         ImageRuntimeStatus = snapshot.Status;
         ImageRuntimeStatusText = _resources.GetString($"Status{snapshot.Status}");
+
+        // The control API may load a different image model; follow it.
+        if (snapshot.Status is RuntimeStatus.Loading or RuntimeStatus.Ready
+            && ImageModels.FirstOrDefault(model => model.Id == snapshot.ModelId) is { } runningImageModel)
+        {
+            ImageModel = runningImageModel;
+        }
+
         if (!string.IsNullOrWhiteSpace(snapshot.Detail))
         {
             ImageRuntimeDetail = snapshot.Detail;
         }
 
         GenerateImageCommand.NotifyCanExecuteChanged();
+        LoadImageModelCommand.NotifyCanExecuteChanged();
         LoadModelCommand.NotifyCanExecuteChanged();
         LoadVideoModelCommand.NotifyCanExecuteChanged();
     }

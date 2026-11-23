@@ -8,6 +8,8 @@ on:
       - "src/MoE.ModelManager.Tests/**"
       - "scripts/build-installer.ps1"
       - "scripts/install-runtime.ps1"
+      - "scripts/install-image-runtime.ps1"
+      - "settings.ps1"
       - ".github/workflows/release-app.yml"
   workflow_dispatch:
 
@@ -65,18 +67,11 @@ jobs:
             "$env:GITHUB_WORKSPACE\devcert.pfx",
             [Convert]::FromBase64String($env:CERTIFICATE_PFX_BASE64))
 
-      - name: Restore pinned native runtimes
+      - name: Install pinned native runtimes
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path bootstrap | Out-Null
-          gh release download v1.7.2 --repo "${{ github.repository }}" --pattern '*.msix' --dir bootstrap
-          $bootstrapPackage = Get-ChildItem bootstrap -Filter '*.msix' | Select-Object -First 1
-          if ($null -eq $bootstrapPackage) { throw 'Bootstrap MSIX was not downloaded.' }
-          Copy-Item $bootstrapPackage.FullName bootstrap\package.zip
-          Expand-Archive bootstrap\package.zip bootstrap\expanded -Force
-          New-Item -ItemType Directory -Force -Path runtime\llama.cpp-b10359-cuda12.4,runtime\stable-diffusion.cpp | Out-Null
-          Copy-Item bootstrap\expanded\Runtime\* runtime\llama.cpp-b10359-cuda12.4 -Recurse -Force
-          Copy-Item bootstrap\expanded\ImageRuntime\* runtime\stable-diffusion.cpp -Recurse -Force
+          .\scripts\install-runtime.ps1
+          .\scripts\install-image-runtime.ps1
 
       - name: Restore, build, and test
         shell: pwsh

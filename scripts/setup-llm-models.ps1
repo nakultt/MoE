@@ -84,6 +84,37 @@ if (Test-Path -LiteralPath $gemmaMtpQ8) {
 }
 
 # ---------------------------------------------------------------------------
+# Inkling 2 Mini (Thinking Machines) — mainline-layout UD-Q4_K_XL + vision projector
+# ---------------------------------------------------------------------------
+$inklingDir = Join-Path $ModelRoot 'Inkling-2-Mini'
+New-Item -ItemType Directory -Force -Path $inklingDir | Out-Null
+Write-Host "`n=== Inkling 2 Mini ===" -ForegroundColor Cyan
+
+# Unsloth's root GGUFs use a looped layout only Unsloth's llama.cpp fork reads. The Mainline_Support copies
+# hold the same tensors in the inkling2_loop layout that ggml-org llama.cpp b12611+ reads; they ship as
+# .gguf_file and must be renamed (~17.6 GB).
+$inklingModel = Join-Path $inklingDir 'Inkling-2-Mini-UD-Q4_K_XL.gguf'
+if (Test-Path -LiteralPath $inklingModel) {
+    Write-Host 'Inkling 2 Mini UD-Q4_K_XL GGUF already present.'
+} else {
+    Write-Host 'Downloading Inkling 2 Mini UD-Q4_K_XL mainline GGUF (~17.6 GB)...'
+    hf download unsloth/Inkling-2-Mini-GGUF Mainline_Support/Inkling-2-Mini-UD-Q4_K_XL.gguf_file --local-dir $inklingDir
+    if ($LASTEXITCODE -ne 0) { throw 'Inkling model download failed.' }
+    Move-Item -LiteralPath (Join-Path $inklingDir 'Mainline_Support\Inkling-2-Mini-UD-Q4_K_XL.gguf_file') -Destination $inklingModel
+    Remove-Item -LiteralPath (Join-Path $inklingDir 'Mainline_Support') -Recurse -Force
+}
+
+# Vision projector F16 (~640 MB)
+$inklingMmproj = Join-Path $inklingDir 'mmproj-F16.gguf'
+if (Test-Path -LiteralPath $inklingMmproj) {
+    Write-Host 'Inkling 2 Mini vision projector already present.'
+} else {
+    Write-Host 'Downloading Inkling 2 Mini vision projector F16 (~640 MB)...'
+    hf download unsloth/Inkling-2-Mini-GGUF mmproj-F16.gguf --local-dir $inklingDir
+    if ($LASTEXITCODE -ne 0) { throw 'Inkling vision projector download failed.' }
+}
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 Write-Host "`n=== Download summary ===" -ForegroundColor Green
@@ -93,5 +124,7 @@ Write-Host "Gemma 4 model:     $gemmaModel"
 Write-Host "Gemma 4 projector: $gemmaMmproj"
 Write-Host "Gemma 4 MTP Q4:    $gemmaMtpQ4"
 Write-Host "Gemma 4 MTP Q8:    $gemmaMtpQ8"
+Write-Host "Inkling model:     $inklingModel"
+Write-Host "Inkling projector: $inklingMmproj"
 Write-Host ''
 Write-Host 'If these paths do not match Configuration\models.json, update the JSON file.'

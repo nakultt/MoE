@@ -43,7 +43,7 @@ internal static class LlamaArgumentsBuilder
         {
             arguments.AddRange(
             [
-                "--spec-type", "draft-mtp",
+                "--spec-type", model.DraftType,
                 "--spec-draft-model", model.DraftModelPath!,
                 "--spec-draft-n-max", model.DraftTokens.ToString(CultureInfo.InvariantCulture),
                 "--spec-draft-ngl", "999",
@@ -68,6 +68,7 @@ internal static class LlamaArgumentsBuilder
             }
         }
 
+        arguments.AddRange(model.ExtraArguments);
         return arguments;
     }
 }

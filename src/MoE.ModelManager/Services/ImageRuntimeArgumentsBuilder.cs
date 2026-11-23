@@ -13,7 +13,7 @@ internal static class ImageRuntimeArgumentsBuilder
             throw new ArgumentOutOfRangeException(nameof(port));
         }
 
-        return
+        List<string> arguments =
         [
             "--listen-ip", "127.0.0.1",
             "--listen-port", port.ToString(CultureInfo.InvariantCulture),
@@ -26,9 +26,11 @@ internal static class ImageRuntimeArgumentsBuilder
             "--steps", model.Steps.ToString(CultureInfo.InvariantCulture),
             "--cfg-scale", "1.0",
             "--seed", "-1",
-            "--diffusion-fa",
-            "--vae-conv-direct",
+            "--flash-attn", "off,diffusion=on",
+            "--conv-direct", "auto,vae=on",
             "--mmap",
         ];
+        arguments.AddRange(model.ExtraArguments);
+        return arguments;
     }
 }

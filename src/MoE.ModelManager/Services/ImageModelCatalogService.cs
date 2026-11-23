@@ -10,14 +10,19 @@ internal sealed class ImageModelCatalogService : IImageModelCatalogService
         PropertyNameCaseInsensitive = true,
     };
 
-    public async Task<ImageModelDefinition> LoadAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<ImageModelDefinition>> LoadAsync(CancellationToken cancellationToken)
     {
-        string catalogPath = Path.Combine(AppContext.BaseDirectory, "Configuration", "image-model.json");
+        string catalogPath = Path.Combine(AppContext.BaseDirectory, "Configuration", "image-models.json");
         await using FileStream stream = File.OpenRead(catalogPath);
-        ImageModelDefinition? model = await JsonSerializer.DeserializeAsync<ImageModelDefinition>(
+        List<ImageModelDefinition>? models = await JsonSerializer.DeserializeAsync<List<ImageModelDefinition>>(
             stream,
             SerializerOptions,
             cancellationToken);
-        return model ?? throw new InvalidDataException("The image model configuration is empty.");
+        if (models is null || models.Count == 0)
+        {
+            throw new InvalidDataException("The image model catalog is empty.");
+        }
+
+        return models;
     }
 }
