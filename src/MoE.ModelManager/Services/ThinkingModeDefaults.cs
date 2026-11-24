@@ -18,8 +18,8 @@ internal static class ThinkingModeDefaults
     /// <c>chat_template_kwargs.enable_thinking</c> is always honoured. Inkling 2 reads
     /// <c>reasoning_effort</c> instead of <c>enable_thinking</c>, so a non-thinking request
     /// also gets <c>reasoning_effort = "none"</c> unless the caller set an effort. Inkling still
-    /// writes a short plan at effort zero, so a non-thinking request also gets a zero
-    /// <c>reasoning_budget_tokens</c> unless the caller set a budget.
+    /// writes a short plan at effort zero; a zero <c>reasoning_budget_tokens</c> must not be
+    /// forced on it, because Inkling then loops on empty thinking blocks until the token limit.
     /// </remarks>
     /// <param name="body">The UTF-8 JSON chat completion request.</param>
     /// <returns>The request with the thinking defaults applied.</returns>
@@ -52,11 +52,6 @@ internal static class ThinkingModeDefaults
                 && !requestObject.ContainsKey("reasoning_effort"))
             {
                 templateArguments["reasoning_effort"] = "none";
-            }
-
-            if (!thinking && !requestObject.ContainsKey("reasoning_budget_tokens"))
-            {
-                requestObject["reasoning_budget_tokens"] = 0;
             }
 
             return JsonSerializer.SerializeToUtf8Bytes(requestObject);

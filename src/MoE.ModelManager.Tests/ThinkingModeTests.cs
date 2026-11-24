@@ -14,7 +14,15 @@ public sealed class ThinkingModeTests
 
         Assert.IsFalse(result["chat_template_kwargs"]!["enable_thinking"]!.GetValue<bool>());
         Assert.AreEqual("none", result["chat_template_kwargs"]!["reasoning_effort"]!.GetValue<string>());
-        Assert.AreEqual(0, result["reasoning_budget_tokens"]!.GetValue<int>());
+    }
+
+    [TestMethod]
+    public void ApplyDefaultThinkingMode_ThinkingOff_DoesNotForceZeroBudget()
+    {
+        // A forced zero budget makes Inkling 2 loop on empty thinking blocks.
+        JsonObject result = Apply("""{"model":"m","messages":[]}""");
+
+        Assert.IsNull(result["reasoning_budget_tokens"]);
     }
 
     [TestMethod]

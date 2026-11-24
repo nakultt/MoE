@@ -295,7 +295,7 @@ Tuning findings on 8 GB VRAM + 32 GB RAM:
 | **+ loop-core 6–12 on GPU (shipped)** | **19.30** |
 | + loop-core 6–13 on GPU (VRAM full) | 17.32 |
 
-Inkling is slower than Gemma here because each token needs 48 layer passes and about 27 of them still use CPU-resident experts; even an A100 40 GB with the whole model on the GPU decodes it at about 46 TPS without DSpark. Gemma stays the default chat model. Inkling's template ignores `enable_thinking` and reads `reasoning_effort`, and it still writes a short plan at effort zero, so a non-thinking request also gets `reasoning_effort: "none"` and `reasoning_budget_tokens: 0` (see `ThinkingModeDefaults.cs`).
+Inkling is slower than Gemma here because each token needs 48 layer passes and about 27 of them still use CPU-resident experts; even an A100 40 GB with the whole model on the GPU decodes it at about 46 TPS without DSpark. Gemma stays the default chat model. Inkling's template ignores `enable_thinking` and reads `reasoning_effort`, so a non-thinking request also gets `reasoning_effort: "none"` (see `ThinkingModeDefaults.cs`). At effort zero Inkling still writes a short plan. A zero `reasoning_budget_tokens` must not be forced: Inkling then loops on empty thinking blocks until the token limit.
 
 ### Nemotron 3 Nano Omni 30B A3B
 
