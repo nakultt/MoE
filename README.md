@@ -323,6 +323,20 @@ For direct llama.cpp use without the desktop app:
 
 ---
 
+## Local model quality test
+
+A hard, auto-graded 31-item test (November 2026) compared the three main chat models through the app API with thinking off: 7 math, 7 logic, 5 coding tasks run against unit tests, 4 strict instruction-following tasks and 8 tool-calling scenarios (tool choice, no-tool restraint, parallel calls, nested and typed arguments, answering from a tool result).
+
+![Hard test score vs average seconds per question](docs/images/local-llm-hard-test.png)
+
+| Model | Math | Logic | Coding | Instructions | Tools | Total | Avg s / question |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| **Gemma 4 26B A4B** | 7/7 | 7/7 | 4/5 | 4/4 | 8/8 | **30/31** | **7.4** |
+| Inkling 2 Mini 26.4B | 7/7 | 7/7 | 4/5 | 4/4 | 8/8 | **30/31** | 25.9 |
+| Qwen3.6 35B A3B | 7/7 | 7/7 | 5/5 | 3/4 | 7/8 | 29/31 | 11.4 |
+
+Gemma matches Inkling's accuracy at 3.5x the speed, so it stays the default. Qwen invented a stock price instead of calling the stock tool.
+
 ## Reasoning and context use
 
 All four chat models expose a thinking channel, so `supportsReasoning` is set for each of them in `Configuration/models.json` and the **Think** menu is live for all four.
