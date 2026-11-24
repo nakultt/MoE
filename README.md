@@ -176,7 +176,7 @@ The pinned FastVideo checkout receives [an 8 GB compatibility patch](patches/fas
 | Qwen3.6 35B A3B Q4_K_M | 8,192 | F16 | 30 | Off | 41.18 TPS |
 | Gemma 4 26B A4B QAT UD-Q4_K_XL | 65,536 | Q4 | 20 | Q8 MTP, draft length 2 | 50.54 TPS |
 | Nemotron 3 Nano Omni 30B A3B APEX-I-Nano | 8,192 | Q8 | 40 | Off (no compatible draft tensors) | 38.83 TPS |
-| Inkling 2 Mini 26.4B UD-Q4_K_XL | 32,768 | Q8 | 17 of 24 (`-ot`, loop core 6–12 on GPU) | Off (DSpark not in mainline yet) | 18.64 TPS |
+| Inkling 2 Mini 26.4B UD-Q4_K_XL | 32,768 | Q8 | 17 of 24 (`-ot`, loop core 6–12 on GPU) | Off (DSpark measured slower) | 19.30 TPS |
 
 Gemma is one main model. Its small Q8 MTP GGUF is a speculative-decoding helper, not a second chat model. Both files are loaded together when Gemma is selected.
 
@@ -284,14 +284,15 @@ Tuning findings on 8 GB VRAM + 32 GB RAM:
 - The default 512-token micro-batch reserved a 9.9 GB CUDA compute buffer. `-ub 128 --no-op-offload` cuts it to 0.84 GB.
 - The freed VRAM holds the experts of loop-core layers 6–12 (each runs three times per token); all other experts stay in system RAM.
 - 16 threads is fastest (12: 17.9, 8: 14.7, 20: 11.2 TPS).
-- The DSpark drafter needs the unmerged llama.cpp PR #32218 and does not load in b12651.
+- The DSpark drafter needs the unmerged llama.cpp PR #32218 and does not load in b12651. A local build of that PR (CUDA 13.4) decoded 18.0 TPS without the drafter and 11.9 / 10.3 / 9.2 TPS with 2 / 3 / 4 draft tokens, because every drafted token is verified through CPU-resident experts, so DSpark stays off.
+- Measured with other apps closed (about 20 GB of RAM free). With RAM nearly full, Windows evicts the memory-mapped CPU experts and TPS drops; loading the whole model into RAM (`-lm none`) gave no gain (19.24 TPS).
 
 | Inkling configuration | Median TPS |
 | --- | ---: |
 | `-ncmoe 24` (experts overflow VRAM) | 12.06 |
 | `-ot` all experts on CPU, `-ub 128 --no-op-offload` | 12.85 |
 | + loop-core 6–11 on GPU | 17.32 |
-| **+ loop-core 6–12 on GPU (shipped)** | **18.64** |
+| **+ loop-core 6–12 on GPU (shipped)** | **19.30** |
 | + loop-core 6–13 on GPU (VRAM full) | 17.32 |
 
 Inkling is slower than Gemma here because each token needs 48 layer passes and about 27 of them still use CPU-resident experts; even an A100 40 GB with the whole model on the GPU decodes it at about 46 TPS without DSpark. Gemma stays the default chat model. Inkling's template ignores `enable_thinking` and reads `reasoning_effort`, and it still writes a short plan at effort zero, so a non-thinking request also gets `reasoning_effort: "none"` and `reasoning_budget_tokens: 0` (see `ThinkingModeDefaults.cs`).
@@ -375,7 +376,7 @@ This section provides complete, production-ready documentation of the OpenAI-com
 
 | Model ID | Type | Runtime | Description |
 | --- | --- | --- | --- |
-| `inkling-2-mini` | Text (LLM) | llama.cpp (CUDA) | Inkling 2 Mini 26.4B looped MoE (3.4B active), UD-Q4_K_XL, 32K context, 18.64 TPS, vision-capable |
+| `inkling-2-mini` | Text (LLM) | llama.cpp (CUDA) | Inkling 2 Mini 26.4B looped MoE (3.4B active), UD-Q4_K_XL, 32K context, 19.3 TPS, vision-capable |
 | `gemma-4-26b-a4b` | Text (LLM) | llama.cpp (CUDA) | Gemma 4 26B A4B, QAT UD-Q4_K_XL with Q8 MTP, 64K context, 50.54 TPS, vision-capable (default) |
 | `qwen3.6-35b-a3b` | Text (LLM) | llama.cpp (CUDA) | Qwen3.6 35B A3B, Q4_K_M, 41.18 TPS, vision-capable |
 | `nemotron-3-nano-omni-30b-a3b` | Text output, omni input | llama.cpp (CUDA/CPU) | Nemotron 3 Nano Omni community GGUF; text, image, audio, and video understanding with optional reasoning |
